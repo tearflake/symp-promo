@@ -134,10 +134,10 @@ Utility functions `add`, `mul`,and `pow` are placed within the `unary.symp` file
 Unary numbers produced/consumed by these functions are of the following notation:
 
 ```
-0 = (Z ())
-1 = (S (Z ()))
-2 = (S (S (Z ())))
-3 = (S (S (S (Z ()))))
+0 = ("Z" ())
+1 = ("S" ("Z" ()))
+2 = ("S" ("S" ("Z" ())))
+3 = ("S" ("S" ("S" ("Z" ()))))
 ...
 ```
 
