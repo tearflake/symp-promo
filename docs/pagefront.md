@@ -120,7 +120,7 @@ The following example demonstrates a simple Pagefront document describing a smal
                 (PARAG "*Right*"))
                 
             (EDIT (ID "feedback") "4")
-            (BUTTON (CAPTION "Submit Form") (SEND "submit" (agree direction feedback)))
+            (HBLIST (BUTTON (CAPTION "Submit Form") (SEND "submit" (agree direction feedback))))
             HRULER
             (CODE
                 """
