@@ -25,7 +25,7 @@ layout: docs
 
 ## 1. Introduction
 
-The Symp core is designed as a small, self-contained language for symbolic computation. It provides only the essential constructs needed to define functions, structure data, and evaluate expressions. The intention is not to recreate a full programming language, but to offer a foundational substrate upon which more elaborate paradigms—imperative, functional, and rewriting systems—can be layered.
+The Symp core is designed as a small, self-contained language for symbolic computation. It provides only the essential constructs needed to define functions, structure data, and evaluate expressions. The intention is not to recreate a full programming language, but to offer a foundational substrate upon which more elaborate paradigms can be layered.
 
 The design emphasizes simplicity, referential transparency, and structural clarity. Each program is a collection of named constants and functions, each with fixed arity and a single result expression. Evaluation proceeds through nested S-expressions, with no state, mutation, or side effects. The resulting system is predictable, deterministic, and amenable to formal reasoning, while still being expressive enough to define a wide range of symbolic transformations.
 
@@ -244,9 +244,9 @@ Call:
 
 ---
 
-We skimmed over seven examples, ranging from literals to branching, to lists, to recursion, and to higher order constructs. The examples are not intended to show the full potential of Symp core, yet to provide an introduction to core capabilities. For more advanced examples of meta-programming, interested reader is invited to read the accompanying documentation where we deal with imperative, functional, and rewriting programming paradigms.
+We skimmed over seven examples, ranging from literals to branching, to lists, to recursion, and to higher order constructs. The examples are not intended to show the full potential of Symp core, yet to provide an introduction to core capabilities. For more advanced examples of meta-programming, interested reader is invited to read the accompanying documentation.
 
 ## 4. Conclusion
 
-The Symp core provides a deliberately minimal foundation for symbolic computation. Its strict S-expression syntax, fixed-arity functions, and small set of primitives allow users to construct predictable and transparent computational structures. Although the core itself is intentionally sparse, it serves as the stable backbone for the richer paradigms defined in the broader Symp system. The examples provided illustrate how expressive behavior can emerge from a core symbolic substrate.
+The Symp core provides a deliberately minimal foundation for symbolic computation. Its strict S-expression syntax, fixed-arity functions, and small set of primitives allow users to construct predictable and transparent computational structures. The examples provided illustrate how expressive behavior can emerge from a core symbolic substrate.
  

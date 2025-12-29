@@ -1,7 +1,3 @@
-```
-// WORK IN PROGRESS //
-```
-
 ## Symp
 
 a programming framework from a parallel reality where symbols won
@@ -54,7 +50,7 @@ Devices may communicate to each other using the core as a mediating environment 
 
 The core is pure, stateless, and referentially transparent computing unit, while devices may maintain states during their life cycle.
 
-Together, they form an integrated system capable of performing any kind of computation we may require as their users.
+Together, they form an integrated system capable of performing any kind of computation we may require as its users.
 
 ---
 
@@ -77,14 +73,7 @@ It is optimized for clarity, exactness, and inspectability.
 
 ## Docs
 
-```
-// WORK IN PROGRESS //
-```
-
-* [Symp Specs]
+* [Symp Specs](docs/symp)
     * [Core Specs](docs/core)
-    * [Pagefront Device Specs](docs/pagefront)
+    * [Pagefront Specs](docs/pagefront)
 
-```
-// WORK IN PROGRESS //
-```
