@@ -31,16 +31,16 @@ At its core, Symp treats programs as trees of symbolic terms. There is no strict
 
 Several design principles guide Symp:
 
-* **Explicit structure over implicit behavior**
+* **Explicit structure over implicit behavior**  
   Name resolution, parameter access, and module boundaries are all explicit and structural.
 
-* **Substitution instead of environments**
+* **Substitution instead of environments**  
   Function application is defined as syntactic substitution rather than environment-based evaluation.
 
-* **Minimal core semantics**
+* **Minimal core semantics**  
   The core language is intentionally small, enabling predictable behavior and extensibility.
 
-* **Symbolic-first computation**
+* **Symbolic-first computation**  
   Symp is intended to manipulate expressions symbolically, even when modeling evaluative or functional behavior.
 
 This specification focuses exclusively on the *Symp core*. Extensions such as imperative constructs, functional enrichments, rewriting systems, or device-oriented components are intentionally out of scope and may be defined in separate documents.
@@ -118,13 +118,13 @@ This design ensures:
 
 A name in a module may correspond to one of three conceptual roles:
 
-1. **Parameters**
+1. **Parameters**  
    Declares that the name is callable and specifies its parameter structure.
 
-2. **Result**
+2. **Result**  
    Associates the name with a value or expression. Such identifiers behave like constants.
 
-3. **Function**
+3. **Function**  
    Combines parameters and a result expression, forming a transformation rule.
 
 These roles determine how an identifier behaves during evaluation:
@@ -175,10 +175,10 @@ Parameters in Symp are not just placeholders; they may include **projections**, 
 
 Two kinds of projections exist:
 
-1. **Named projections**
+1. **Named projections**  
    If a parameter corresponds to a fixed-arity definition, its fields can be accessed by name.
 
-2. **Structural projections**
+2. **Structural projections**  
    For variadic arity definitions, `head` and `tail` allow positional access.
 
 Projections are resolved during substitution and allow functions to deconstruct arguments without requiring explicit pattern-matching syntax.
