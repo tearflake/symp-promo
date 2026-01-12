@@ -491,7 +491,7 @@ While still symbolic, this example demonstrates:
 * Recursive function expansion
 * Structural projections
 * Built-in comparison
-* Parametric result head
+* Parametric list head
 * Explicit termination conditions
 
 ### Summary
