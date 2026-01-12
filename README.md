@@ -54,9 +54,9 @@ Together, they form an integrated system capable of performing any kind of compu
 
 ---
 
-#### What can Symp be used for?
+#### What can core be used for?
 
-Symp is designed for problems where structure matters more than presentation.
+Symp core is designed for problems where structure matters more than presentation.
 
 It is especially suited for:
 
@@ -66,14 +66,12 @@ It is especially suited for:
 * Meta-programming and symbolic transformation
 * Learning computation from first principles
 
-Symp is not optimized for speed, graphics, or mass-market applications.
+The core is not optimized for speed, graphics, or mass-market applications.
 It is optimized for clarity, exactness, and inspectability.
 
 ---
 
 ## Docs
 
-* [Symp Specs](docs/symp)
-    * [Core Specs](docs/core)
-    * [Pagefront Specs](docs/pagefront)
+* [Core Specs](docs/core)
 
