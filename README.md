@@ -56,7 +56,7 @@ Together, they form an integrated system capable of performing any kind of compu
 
 #### What can core be used for?
 
-Symp core is designed for problems where structure matters more than presentation.
+The core is designed for problems where structure matters more than presentation.
 
 It is especially suited for:
 
