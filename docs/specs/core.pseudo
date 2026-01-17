@@ -65,7 +65,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
             
             if head.idName == "IsAtom" // test if argument is atom
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsAtm' requires one parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsAtom' requires one parameter`]}
                                     
                 if reduce(expr.tail[0]) is Atom
                     expr = {module: [], idName: "True"}
@@ -77,11 +77,11 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
             
             if head.idName == "IsEmpty" // test for list is empty
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires one parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
                 if not redExpr is List
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires list as parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires list as parameter`]}
 
                 if (redExpr.tail.length == 0)
                     expr = {module: [], idName: "True"}
@@ -93,39 +93,39 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
             
             if head.idName == "FAH" // first element after head
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires one parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
                 if not redExpr is List
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires list as parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' requires list as parameter`]}
 
                 if (redExpr.tail.length == 0)
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' on empty list`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' on empty list`]}
                 
                 expr = redExpr.tail[0]
                 continue
             
             if head.idName == "RAH" // rest of elements after head
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'Rest' requires one parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
                 if not redExpr is List
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'Rest' requires list as parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' requires list as parameter`]}
                 
                 if (redExpr.tail.length == 0)
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'Rest' on empty list`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' on empty list`]}
                 
                 expr = {head: redExpr.head, tail: redExpr.tail[1..]}
                 continue
             
             if head.idName == "IAH" // insert element after head
                 if expr.tail.length != 2
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'Prepend' requires two parameters`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'IAH' requires two parameters`]}
                 
                 redExpr = reduce(expr.tail[1], moduleTree)
                 if not redExpr is List
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'Prepend' requires list as second parameter`]}
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'IAH' requires list as second parameter`]}
 
                 expr = {head: redExpr.head, tail: [reduce(expr.tail[0], moduleTree), ...redExpr.tail]}
                 continue

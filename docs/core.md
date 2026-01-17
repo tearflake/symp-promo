@@ -60,7 +60,7 @@ This section introduces the formal syntax and the informal semantic model underl
 
 ### 2.1. Formal Syntax
 
-In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp core language itself resembles a kind of S-expression. S-expressions consist of lists of atoms or other S-expressions where lists are surrounded by parenthesis. In Symp core, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
+In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp core language itself resembles a kind of S-expression. S-expressions consist of atoms or lists of other S-expressions where lists are surrounded by parenthesis. In Symp core, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
 
 ```
 /////////////////////////////////////////////////////////
@@ -84,7 +84,7 @@ In computer science, the syntax of a computer language is the set of rules that 
         | (FUNCTION (PARAMS ...) (RESULT <ANY>))
 ```
 
-The above grammar defines the syntax of Symp core. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols are considered parts of the Symp core grammar.
+The above grammar defines the syntax of Symp Core. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols (including `...`) are considered parts of the Symp Core grammar.
 
 Atomic expressions may be enclosed between a pair of `'` characters if we want to include special characters used in the grammar. Strings are enclosed between a pair of `"` characters. Multiline atoms and strings are enclosed between an odd number of `'` or `"` characters.
  
@@ -156,7 +156,7 @@ Function application is therefore **pure substitution**, not evaluation in an en
 
 ##### Irreducible parameters
 
-A **parameter** is an identifier whose definition consists only of a parameter declaration and has no associated result term.
+A **parameters** is an identifier whose definition consists only of a parameter declaration and has no associated result term.
 
 Parameters are **irreducible**:
 
@@ -198,7 +198,7 @@ There are no named parameters and no pattern matching at the core level.
 
 #### Built-in reducible identifiers
 
-Certain identifiers (such as `Eq`, `IsAtom`, `IsEmpty`, `FAH`, `RAH`, `IAH`, and `ERROR`) are treated as built-in reducible functions with fixed reduction rules. These form the minimal operational core of the language and are not defined within the module system itself.
+Certain identifiers (such as `Eq`, `IsAtom`, `IsEmpty`, `FAH`/ *first-after-head*, `RAH` / *rest-after-head*, and `IAH` / *insert-after-head*) are treated as built-in reducible functions with fixed reduction rules. These form the minimal operational core of the language and are not defined within the module system itself.
 
 #### Normal forms
 
@@ -228,7 +228,7 @@ The absence of implicit state, environments, or variable binding makes Symp Core
 
 ## 3. Examples
 
-This section presents a sequence of Symp Core examples, starting from simple atomic terms and gradually introducing lists, built-in operations, user-defined functions, and recursion with branching. Each example builds on concepts introduced earlier.
+This section presents a sequence of Symp Core examples, starting from simple atomic terms and gradually introducing lists, built-in operations, user-defined functions, branching, and recursion. Each example builds on concepts introduced earlier.
 
 ### 3.1. Atoms
 
@@ -282,7 +282,7 @@ Some identifiers have predefined semantics when used as list heads.
 
 #### Equality: `Eq`
 
-The `Eq` built-in tests structural equality of two reduced terms:
+The `Eq` built-in tests atomic equality of two reduced terms:
 
 ```
 (Eq "a" "a")
@@ -304,7 +304,7 @@ Reduction result:
 False
 ```
 
-Equality is defined over fully reduced terms.
+Equality is tested over fully reduced terms.
 
 #### Atomic values: `IsAtom`
 
@@ -326,7 +326,7 @@ Applied to a list:
 (IsAtom (Foo "bar"))
 ```
 
-Reduction result:
+Reduction result (assuming `FOO` is defined and doesn't reduce to an atom):
 
 ```
 False
@@ -340,13 +340,13 @@ The `IsEmpty` built-in tests whether a list has zero elements:
 (IsEmpty (Foo))
 ```
 
-Reduction result:
+Reduction result (assuming `FOO` is defined and doesn't reduce to an atom):
 
 ```
 True
 ```
 
-Applied to a list:
+Applied to a list (assuming `FOO` is defined and doesn't reduce to an atom):
 
 ```
 (IsEmpty (Foo "bar"))
@@ -518,9 +518,9 @@ Although Symp Core has no built-in conditionals, conditional behavior can be exp
       (PARAMS ...)))
 ```
 
-Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `IsEmpty` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
+Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `Eq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
 
-We define an empty list as a list with no tail:
+Calling `Branch`:
 
 ```
 (Branch Zero)
@@ -658,7 +658,7 @@ Errors are ordinary terms and propagate structurally.
 Reduction result:
 
 ```lisp
-(ERROR "'First' requires list as parameter")
+(ERROR "'FAH' requires list as parameter")
 ```
 
 Because errors are values, they can be passed around and inspected like any other term.
