@@ -51,31 +51,23 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
             if head.idName == "Args" or head.idName == "ERROR" // arg list and error are valid heads
                 return expr
             
-            if head.idName == "Eq" // test for atom equality
+            if head.idName == "IsEq" // test for atom equality
                 if expr.tail.length != 2
                     return {head: {module: [], idName: "ERROR"}, tail: [`'Eq' requires two parameters`]}
                                     
-                if reduce(expr.tail[0], moduleTree) == reduce(expr.tail[1], moduleTree)
-                    expr = {module: [], idName: "True"}
-                    continue
-                
-                else
-                    expr = {module: [], idName: "False"}
-                    continue
+                cond = (reduce(expr.tail[0], moduleTree) == reduce(expr.tail[1], moduleTree))
+                expr = {module: [], idName: (cond ? "True" : "False"}
+                continue
             
             if head.idName == "IsAtom" // test if argument is atom
                 if expr.tail.length != 1
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IsAtom' requires one parameter`]}
                                     
-                if reduce(expr.tail[0]) is Atom
-                    expr = {module: [], idName: "True"}
-                    continue
-                
-                else
-                    expr = {module: [], idName: "False"}
-                    continue
+                cond = (reduce(expr.tail[0]) is Atom)
+                expr = {module: [], idName: (cond ? "True" : "False"}
+                continue
             
-            if head.idName == "IsEmpty" // test for list is empty
+            if head.idName == "IsEmpty" // test if list is empty
                 if expr.tail.length != 1
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires one parameter`]}
                 
@@ -83,13 +75,9 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                 if not redExpr is List
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires list as parameter`]}
 
-                if (redExpr.tail.length == 0)
-                    expr = {module: [], idName: "True"}
-                    continue
-                
-                else
-                    expr = {module: [], idName: "False"}
-                    continue
+                cond = (redExpr.tail.length == 0)
+                expr = {module: [], idName: (cond ? "True" : "False"}
+                continue
             
             if head.idName == "FAH" // first element after head
                 if expr.tail.length != 1
