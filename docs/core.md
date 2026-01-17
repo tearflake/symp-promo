@@ -509,16 +509,16 @@ Although Symp Core has no built-in conditionals, conditional behavior can be exp
       (PARAMS ...)
       (RESULT (FAH (RAH Args)))))
 
-  (ID Branch
-    (FUNCTION
-      (PARAMS ...)
-      (RESULT ((EQ (FAH Args) Zero) Foo Bar))))
-
   (ID Zero
       (PARAMS ...))
 
   (ID Succ
       (PARAMS ...)))
+
+  (ID Branch
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT ((EQ (FAH Args) Zero) Foo Bar))))
 ```
 
 Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `Eq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
