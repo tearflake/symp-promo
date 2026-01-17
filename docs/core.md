@@ -69,11 +69,11 @@ In computer science, the syntax of a computer language is the set of rules that 
 //                                                     //
 //  Notes:                                             //
 //  - in this grammar, `...` reads as a terminal       //
-//  - `+` marks one or more occurrences                //
+//  - `*` marks zero or more occurrences               //
 //                                                     //
 /////////////////////////////////////////////////////////
 
-<start> := (SYMP <alias>+ <ident>+)
+<start> := (SYMP <alias>* <ident>*)
          | (FILE <ATOMIC>)
 
 <alias> := (ALIAS <ATOMIC> <start>)
