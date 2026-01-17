@@ -514,6 +514,9 @@ Although Symp Core has no built-in conditionals, conditional behavior can be exp
       (PARAMS ...)
       (RESULT ((EQ (FAH Args) Zero) Foo Bar))))
 
+  (ID Zero
+      (PARAMS ...))
+
   (ID Succ
       (PARAMS ...)))
 ```
@@ -549,6 +552,9 @@ Symp Core has no built-in numeric literals or arithmetic. For this example, we r
 
 ```
 (SYMP
+  (ID Zero
+      (PARAMS ...))
+
   (ID Succ
       (PARAMS ...)))
 ```
@@ -582,6 +588,9 @@ We now define a recursive function `Length`:
     (FUNCTION
       (PARAMS ...)
       (RESULT (FAH (RAH Args)))))
+
+  (ID Zero
+      (PARAMS ...))
 
   (ID Succ
       (PARAMS ...))
