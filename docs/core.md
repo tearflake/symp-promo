@@ -5,13 +5,13 @@ layout: docs
 # Symp Core Specs
 
 > **[about document]**  
-> Specification of *Symp core*, a symbolic processing framework
+> Specification of *Symp Core*, a symbolic processing framework
 >
 > **[intended audience]**  
 > Advanced programmers
 > 
 > **[abstract]**  
-> Symp is a symbolic processing framework built around S-expressions, explicit module structures, and substitution-based evaluation. Unlike traditional programming languages that rely on environments, closures, and implicit scoping rules, Symp models computation as a sequence of structural rewrites over symbolic terms. Its core design emphasizes transparency, compositionality, and explicit semantics, making it well-suited for symbolic computation, metaprogramming, domain-specific languages, and program transformation tasks. This document specifies the Symp core language, describing its syntax, informal semantics, and representative usage patterns.
+> Symp Core is a minimal symbolic computation framework based on S-expressions and term rewriting. Its execution model is defined entirely by structural reduction rules, without variables, environments, mutable state, or implicit control flow. This document specifies the core syntax and semantics of Symp Core, providing a formal grammar, an informal semantic model, and illustrative examples. The aim is to present Symp Core as a small, deterministic foundation for symbolic processing, language experimentation, and reasoning about computation through explicit term transformation.
 
 
 ## Table of Contents
@@ -25,56 +25,63 @@ layout: docs
 
 ## 1. Introduction
 
-Symp is a symbolic computation framework designed around a small but expressive core. Its primary goal is to provide a minimal, well-defined foundation for building higher-level computational systems that manipulate structured expressions rather than executing imperative instructions.
+Symp Core is a deliberately minimal language designed to explore computation as **structural transformation of symbolic expressions**. Rather than relying on variables, environments, or mutable state, Symp Core defines all behavior in terms of S-expression reduction driven by explicit rewrite rules.
 
-At its core, Symp treats programs as trees of symbolic terms. There is no strict separation between code and data: functions, expressions, and values are all represented using the same underlying S-expression structure. Computation proceeds by *rewriting* these structures according to explicitly declared rules, rather than by executing statements in a mutable environment.
+The language is intended as a *core calculus*, not a full-featured programming language. Its design favors simplicity, predictability, and semantic transparency over convenience or performance. Every construct in Symp Core has a small and well-defined meaning, and there are no hidden evaluation rules beyond those explicitly specified.
 
-Several design principles guide Symp:
+Symp Core is suitable as:
 
-* **Explicit structure over implicit behavior**  
-  Name resolution, parameter access, and module boundaries are all explicit and structural.
+* a foundation for higher-level symbolic or functional languages,
+* a target for experimentation with alternative semantics,
+* a teaching tool for reduction-based computation,
+* or a compact system for symbolic processing and term manipulation.
 
-* **Substitution instead of environments**  
-  Function application is defined as syntactic substitution rather than environment-based evaluation.
-
-* **Minimal core semantics**  
-  The core language is intentionally small, enabling predictable behavior and extensibility.
-
-* **Symbolic-first computation**  
-  Symp is intended to manipulate expressions symbolically, even when modeling evaluative or functional behavior.
-
-This specification focuses exclusively on the *Symp core*. Extensions such as imperative constructs, functional enrichments, rewriting systems, or device-oriented components are intentionally out of scope and may be defined in separate documents.
+This specification describes Symp Core, focusing on its syntax, reduction semantics, and core operational behavior.
 
 ## 2. Theoretical Background
 
-Symp is influenced by several well-established ideas in programming language theory, symbolic computation, and formal systems. This section outlines the conceptual foundations that motivate its design.
+Symp Core draws inspiration from several established ideas in programming language theory, including S-expressions, term rewriting systems, and functional reduction semantics. However, it intentionally avoids many features commonly found in functional languages, such as variable binding, closures, and implicit evaluation strategies.
 
-First, Symp adopts the **S-expression** as its fundamental syntactic representation. Originating in early symbolic computation systems, S-expressions provide a uniform and recursive structure that naturally represents trees, lists, and nested expressions. This uniformity allows Symp programs to be easily analyzed, transformed, and generated.
+Instead, Symp Core adopts the following guiding principles:
 
-Second, Symp draws from **term rewriting systems**. Rather than viewing computation as a sequence of state transitions, Symp models evaluation as the repeated transformation of symbolic terms until a stable form is reached. Function definitions act as rewrite rules, and evaluation corresponds to their systematic application.
+* **Uniform representation**  
+  Code and data share the same S-expression structure.
 
-Third, Symp deliberately avoids **environment-based semantics** common in functional languages. There are no closures, lexical environments, or dynamic variable bindings. Instead, Symp relies on explicit module paths and substitution. This approach eliminates many sources of ambiguity —such as variable capture or hidden dependencies— at the cost of requiring more explicit structure.
+* **Explicit computation**  
+  Only expressions whose head resolves to a reducible identifier can cause computation.
 
-Finally, Symp incorporates ideas from **module systems** found in statically structured languages. Names are resolved through a hierarchical module tree rather than through lexical scope. This design choice emphasizes clarity, compositionality, and predictability in large symbolic systems.
+* **Structural semantics**  
+  Meaning arises from term shape and position, not from environments or scopes.
 
-Together, these foundations position Symp as a framework for *symbolic structure manipulation* rather than a conventional general-purpose programming language. The following sections formalize this perspective by describing its syntax, semantics, and usage patterns.
+* **Deterministic reduction**  
+  Given the same input term and module tree, reduction always produces the same result.
+
+This section introduces the formal syntax and the informal semantic model underlying Symp Core.
 
 ### 2.1. Formal Syntax
 
-In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp core language itself resembles a kind of S-expression. S-expressions consist of lists of atoms or other S-expressions where lists are surrounded by parenthesis. In Symp core, the first list element to the left determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
+In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp core language itself resembles a kind of S-expression. S-expressions consist of lists of atoms or other S-expressions where lists are surrounded by parenthesis. In Symp core, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
 
 ```
+/////////////////////////////////////////////////////////
+//                                                     //
+//  Relaxed BNF rules for S-expr based Symp Core v0.x  //
+//                                                     //
+//  Notes:                                             //
+//  - in this grammar, `...` reads as a terminal       //
+//  - `+` marks one or more occurrences                //
+//                                                     //
+/////////////////////////////////////////////////////////
+
 <start> := (SYMP <alias>+ <ident>+)
          | (FILE <ATOMIC>)
 
 <alias> := (ALIAS <ATOMIC> <start>)
 
-<ident> := (IDENT <ATOMIC> <term>)
+<ident> := (ID <ATOMIC> <term>)
 
-<term> := (PARAMS <ATOMIC>+)
-        | (PARAMS ...)
-        | (RESULT <ANY>)
-        | (FUNCTION (PARAMS <ATOMIC>+) (RESULT <ANY>))
+<term> := (PARAMS ...)
+        | (FUNCTION (PARAMS ...) (RESULT <ANY>))
 ```
 
 The above grammar defines the syntax of Symp core. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols are considered parts of the Symp core grammar.
@@ -83,436 +90,604 @@ Atomic expressions may be enclosed between a pair of `'` characters if we want t
  
 In addition to the exposed grammar, user comments have no meaning to the system, but may be descriptive to readers, and may be placed wherever a whitespace is expected. Single line comments begin with `//` and span to the end of line. Multiline comments begin with `/*` and end with `*/`.
 
-We will be using the same syntax definition nomenclature throughout the accompanying specification documents of imperative, functional, and rewriting extensions, and device components.
-
 ### 2.2. Informal Semantics
 
-This section describes how Symp programs are *interpreted* and how expressions *behave*, without relying on formal evaluation rules. The goal is to explain how Symp “thinks” and how users should reason about programs written in it.
+Symp Core is an S-expression–based language whose semantics are defined entirely in terms of **term reduction**. There is no notion of variables, environments, or mutable state. Computation proceeds by repeatedly rewriting expressions until no further reduction steps are possible.
 
-#### Programs as Symbolic Structures
+At runtime, every expression is a **term**, and every term is either *reducible* or *irreducible* depending on its form and position.
 
-Symp is a **symbolic, expression-oriented framework** based on S-expressions.
-Every program, definition, and computation in Symp is represented as a tree of terms. There is no distinction between “code” and “data”: expressions are manipulated as structured values.
+#### Programs and Modules
 
-Evaluation in Symp proceeds by **rewriting expressions** until they reach a stable form. Rather than executing instructions step by step, Symp repeatedly replaces identifiers and function applications with their corresponding definitions.
+A Symp Core program is organized as a **tree of modules**. Each module contains a set of named identifiers, where each identifier is associated with either:
 
-#### Modules and Namespaces
+* a parameter placeholder, or
+* a function definition (a term with a result).
 
-All definitions in Symp live inside a **module tree**.
+Modules may contain child modules, forming a hierarchical namespace. Identifiers always refer to definitions through an explicit relative module path; there is no global or dynamic scope. All name resolution is structural and deterministic.
 
-A module:
+Aliases introduce named subtrees into the module hierarchy. They do not alter evaluation semantics, but affect how identifiers are resolved.
 
-* Maps names to *definitions*
-* May contain child modules
-* Is addressed explicitly via module paths
+#### Terms and evaluation
 
-Identifiers are resolved **structurally**, not lexically. Each identifier carries its own module path, and name lookup follows that path through the module tree. There is no implicit global scope and no dynamic environment.
+A term is either:
 
-This design ensures:
+* an **atom** (identifier or literal), or
+* a **list**, consisting of a head identifier and a list of argument terms.
 
-* Fully explicit name resolution
-* No hidden captures or shadowing
-* Deterministic interpretation of identifiers
+Reduction always proceeds by attempting to evaluate the **head position** of a list. Identifiers and literals appearing outside of head position are *not evaluated automatically*.
 
-#### Definitions and Their Roles
+Reduction continues until one of the following holds:
 
-A name in a module may correspond to one of three conceptual roles:
+* the term is a literal,
+* the term is an identifier,
+* the term is a list whose head does not reduce to a reducible function.
 
-1. **Parameters**  
-   Declares that the name is callable and specifies its parameter structure.
+#### Identifiers
 
-2. **Result**  
-   Associates the name with a value or expression. Such identifiers behave like constants.
+An identifier consists of:
 
-3. **Function**  
-   Combines parameters and a result expression, forming a transformation rule.
+* a module path, and
+* a local name.
 
-These roles determine how an identifier behaves during evaluation:
+Identifiers are **inert by default**. An identifier on its own does not evaluate to its definition. It only gains meaning when it appears in the *head position* of a list.
 
-* A *Result* is automatically replaced by its value when encountered.
-* A *Function* is expanded only when applied to arguments.
-* A *Parameters-only* definition acts as a symbolic operator and does not reduce on its own.
+If an identifier cannot be resolved in the module tree, reduction yields an explicit `ERROR` term.
 
-#### Expressions and Evaluation
+#### Reducible functions vs. irreducible parameters
 
-Symp expressions are either **atoms** or **lists**.
+Every identifier defined in a module belongs to exactly one of two semantic categories:
 
-* **Atoms** evaluate to themselves unless they are function parameters or identifiers bound to results.
-* **Lists** represent applications or structured expressions.
+##### Reducible functions
 
-Evaluation always proceeds by first reducing the **head** of a list. The meaning of a list depends on what its head evaluates to.
+A **function** is an identifier whose definition includes a result term. When such an identifier appears in the head position of a list, it is *reducible*.
 
-If the head resolves to:
+Reducing a function application proceeds as follows:
 
-* A special identifier (e.g. `Eq`), special evaluation rules apply.
-* A function definition, the function is expanded.
-* A parameter declaration, the list is preserved as a symbolic structure with evaluated arguments.
+1. The head of the list is reduced until it becomes an identifier.
+2. If that identifier refers to a function definition:
 
-Evaluation continues until no further rewriting steps are possible or an error is encountered.
+   * the function’s result term is taken as a template,
+   * the special identifier `Args` within the result is replaced by the argument list of the call,
+   * all identifiers in the result are rewritten with module paths relative to the call site.
 
-#### Function Application as Substitution
+3. The resulting term replaces the original expression and reduction continues.
 
-Functions in Symp are not applied via environments or closures. Instead, they operate by **substitution**.
+Function application is therefore **pure substitution**, not evaluation in an environment. Functions do not capture values, bind variables, or maintain state. They are best understood as *rewrite rules* over terms.
 
-When a function is applied:
+##### Irreducible parameters
 
-1. Its result expression is copied.
-2. Formal parameters are replaced with the corresponding argument expressions.
-3. Module paths inside the function body are adjusted relative to the call site.
-4. The resulting expression is evaluated further.
+A **parameter** is an identifier whose definition consists only of a parameter declaration and has no associated result term.
 
-This makes function application:
+Parameters are **irreducible**:
 
-* Purely structural
-* Referentially transparent
-* Free of hidden state
+* they do not trigger substitution,
+* they cannot be applied as functions,
+* and they never reduce further.
 
-Functions therefore behave more like **rewrite rules** than traditional runtime procedures.
+When a parameter appears in the head position of a list, the list itself becomes irreducible. Its arguments may still be reduced, but the overall structure is preserved.
 
-#### Parameters and Projections
+Semantically, parameters represent:
 
-Parameters in Symp are not just placeholders; they may include **projections**, which extract parts of argument expressions.
+* constants,
+* symbolic values,
+* or opaque data constructors.
 
-Two kinds of projections exist:
+They provide a way to name values without introducing computation.
 
-1. **Named projections**  
-   If a parameter corresponds to a fixed-arity definition, its fields can be accessed by name.
+##### Consequences of the distinction
 
-2. **Structural projections**  
-   For variadic arity definitions, `head` and `tail` allow positional access.
+This separation between reducible functions and irreducible parameters has several important consequences:
 
-Projections are resolved during substitution and allow functions to deconstruct arguments without requiring explicit pattern-matching syntax.
+* **No implicit evaluation**  
+  Identifiers do not “evaluate to their value.” Only function application causes reduction.
 
-#### Variadic Expressions and Expansion
+* **No variables or bindings**  
+  There is no variable substitution beyond the explicit handling of variadic `Args`.
 
-Symp supports variadic parameter lists and a special expansion form. Variadic lists are declared by writing a single `...` symbol at the place of the arguments.
-Later, before evaluation of variadic parameters, we may optionally inline special anonymous variadic lists identified by `...` at the list head place.
+* **Predictable evaluation**  
+  Whether an expression reduces depends solely on whether its head resolves to a function.
 
-During evaluation:
+* **Uniform data and code representation**  
+  Functions, parameters, and data structures all share the same S-expression form.
 
-* Variadic arguments are expanded inline.
-* Each expanded element is evaluated individually.
-* Expansion occurs before the surrounding list is finalized.
+#### Argument Handling
 
-This allows Symp to express flexible, macro-like constructs while keeping the core semantics simple.
+Arguments are positional and implicit. A function receives its arguments as a list accessible via the identifier `Args`. Arity checks, if required, are enforced explicitly by the function’s reduction logic or built-in rules.
 
-#### Errors and Invalid Expressions
+There are no named parameters and no pattern matching at the core level.
 
-Errors in Symp are represented explicitly as expressions. Common error conditions include:
+#### Built-in reducible identifiers
 
-* Unknown identifiers
-* Invalid module paths
-* Incorrect number of parameters
-* Invalid projections
-* Empty lists
+Certain identifiers (such as `Eq`, `IsAtom`, `IsEmpty`, `FAH`, `RAH`, `IAH`, and `ERROR`) are treated as built-in reducible functions with fixed reduction rules. These form the minimal operational core of the language and are not defined within the module system itself.
 
-Because errors are values, they propagate naturally through evaluation unless explicitly handled.
+#### Normal forms
 
-#### Evaluation Strategy Summary
+A term is in **normal form** if no reduction rule applies. This includes:
 
-In informal terms, Symp evaluation can be summarized as:
+* literals,
+* identifiers,
+* lists whose head reduces to a parameter,
+* lists whose head is a built-in form that explicitly preserves the expression.
 
-> “Repeatedly replace names with what they mean, expand functions by substitution, and reduce lists by interpreting their head.”
+Normal forms are final results of computation.
 
-This strategy favors:
+#### Errors
 
-* Clarity over performance
-* Structure over state
-* Explicit semantics over implicit behavior
+Errors are represented as ordinary terms whose head is the identifier `ERROR`. Errors do not interrupt reduction via control flow; instead, they propagate as values. This makes error handling explicit and inspectable within the language itself.
+
+#### Summary
+
+Informally, Symp Core evaluates programs by:
+
+1. Structurally resolving identifiers through a module tree,
+2. Reducing expressions by repeatedly inspecting list heads,
+3. Applying built-in rules or user-defined rewrite rules,
+4. Producing a final term that can no longer be reduced.
+
+The absence of implicit state, environments, or variable binding makes Symp Core a small but expressive foundation for symbolic computation and language experimentation.
 
 ## 3. Examples
 
-This section introduces Symp by example. Each example builds on the previous ones and highlights a specific aspect of the framework.
+This section presents a sequence of Symp Core examples, starting from simple atomic terms and gradually introducing lists, built-in operations, user-defined functions, and recursion with branching. Each example builds on concepts introduced earlier.
 
-### Example 1: A Constant Definition
+### 3.1. Atoms
 
-The simplest Symp module defines a constant result.
+The simplest Symp Core terms are **atoms**.
+
+A literal atom evaluates to itself:
+
+```
+"hello"
+```
+
+Reduction result:
+
+```
+"hello"
+```
+
+Identifiers are also atoms. However, identifiers are *inert* on their own:
+
+```
+Foo
+```
+
+Reduction result:
+
+```
+Foo
+```
+
+No lookup or evaluation occurs unless an identifier appears in the *head position* of a list.
+
+### 3.2. Lists and Head Reduction
+
+A list represents a potential computation:
+
+```
+(Foo "bar")
+```
+
+Reduction proceeds by first reducing the head (`Foo`). If the head does not reduce to a valid identifier with defined semantics, reduction fails:
+
+```
+(ERROR "Head must reduce to identifier")
+```
+
+At this point, `Foo` has no meaning because it is not defined in any module.
+
+### 3.3. Built-in Predicates
+
+Some identifiers have predefined semantics when used as list heads.
+
+#### Equality: `Eq`
+
+The `Eq` built-in tests structural equality of two reduced terms:
+
+```
+(Eq "a" "a")
+```
+
+Reduction result:
+
+```
+True
+```
+
+```lisp
+(Eq "a" "b")
+```
+
+Reduction result:
+
+```
+False
+```
+
+Equality is defined over fully reduced terms.
+
+#### Atomic values: `IsAtom`
+
+The `IsAtom` built-in tests whether its argument reduces to an atom:
+
+```
+(IsAtom "hello")
+```
+
+Reduction result:
+
+```
+True
+```
+
+Applied to a list:
+
+```
+(IsAtom (Foo "bar"))
+```
+
+Reduction result:
+
+```
+False
+```
+
+#### Lists: `IsEmpty`
+
+The `IsEmpty` built-in tests whether a list has zero elements:
+
+```
+(IsEmpty (Foo))
+```
+
+Reduction result:
+
+```
+True
+```
+
+Applied to a list:
+
+```
+(IsEmpty (Foo "bar"))
+```
+
+Reduction result:
+
+```
+False
+```
+
+### 3.4. Lists as Data
+
+Lists are also data structures and can be inspected using built-in operations.
+
+Consider the list:
+
+```
+(Foo "a" "b" "c")
+```
+
+Using `FAH` (“first after head”):
+
+```
+(FAH (Foo "a" "b" "c"))
+```
+
+Reduction result:
+
+```
+"a"
+```
+
+Using `RAH` (“rest after head”):
+
+```
+(RAH (Foo "a" "b" "c"))
+```
+
+Reduction result:
+
+```
+(Foo "b" "c")
+```
+
+These operations treat lists purely structurally; the meaning of `Foo` is irrelevant here.
+
+### 3.5. Defining Identifiers
+
+Identifiers are introduced in modules using `ID` forms.
 
 ```
 (SYMP
-    (IDENT Pi
-        (RESULT 3.14159)))
+  (ID X
+    (PARAMS ...)
+    (RESULT "hello")))
 ```
 
-Using `Pi` in an expression causes it to reduce automatically:
+The identifier `X` now names the literal `"hello"`.
+
+Using `X` alone:
 
 ```
-Pi
-// → 3.14159
+X
 ```
 
-In Symp, identifiers bound to results behave like constants: they are replaced by their associated expressions whenever they are encountered.
+Reduction result:
 
-### Example 2: Symbolic Operators
+```
+X
+```
 
-An identifier may declare parameters without defining a result.
+Using `X` in head position:
+
+```
+(X)
+```
+
+Reduction result:
+
+```
+"hello"
+```
+
+### 3.6. Functions as Rewrite Rules
+
+A function is defined by specifying a result term that may refer to `Args`.
+
+```lisp
+(SYMP
+  (ID Echo
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT (FAH Args)))))
+```
+
+Calling `Echo`:
+
+```lisp
+(Echo "hello")
+```
+
+Reduction steps:
+
+1. `Echo` resolves to a function.
+2. Its result term is substituted.
+3. `Args` is replaced by the argument list.
+
+Final result:
+
+```
+"hello"
+```
+
+### 3.7. Multiple Arguments
+
+Arguments are positional and accessed structurally.
+
+```
+(Echo "a" "b" "c")
+```
+
+Still reduces to:
+
+```lisp
+"a"
+```
+
+The function itself does not enforce arity; argument structure is handled explicitly by the function body.
+
+### 3.8. Building New Lists: `IAH`
+
+The `IAH` (“insert after head”) built-in constructs a new list by inserting an element after the head of an existing list.
+
+```
+(IAH "x" (Foo "a" "b"))
+```
+
+Reduction result:
+
+```
+(Foo "x" "a" "b")
+```
+
+This allows functions to construct and transform lists.
+
+### 3.9. A Conditional Pattern
+
+Although Symp Core has no built-in conditionals, conditional behavior can be expressed using parametric list heads. In the following example, we define different behavior relative to its head.
 
 ```
 (SYMP
-    (IDENT Add
-        (PARAMS x y)))
+  (ID True
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT (FAH Args))))
+
+  (ID False
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT (FAH (RAH Args)))))
+
+  (ID Branch
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT ((EQ (FAH Args) Zero) Foo Bar))))
+
+  (ID Succ
+      (PARAMS ...)))
 ```
 
-Applying `Add` does **not** compute anything:
+Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `IsEmpty` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
+
+We define an empty list as a list with no tail:
 
 ```
-(Add 1 2)
-// → (Add 1 2)
+(Branch Zero)
 ```
 
-Here, `Add` is treated as a symbolic operator. Its arguments are evaluated, but the expression itself is preserved. This is useful for building symbolic expressions, DSLs, or intermediate representations.
+represents `Foo`, and:
 
-### Example 3: Defining a Function
+```
+(Branch (Succ Zero))
+```
 
-A function combines parameters and a result expression.
+represents `Bar`
+
+### 3.10. Recursive Pattern Example
+
+Although Symp Core has no explicit looping constructs, **recursive behavior emerges naturally from function application and substitution**. A function may refer to itself by name, and reduction will repeatedly expand that reference until a base case is reached.
+
+In this example, we define a recursive function that computes the **length of a list**.
+
+#### Representing Numbers
+
+Symp Core has no built-in numeric literals or arithmetic. For this example, we represent numbers symbolically:
+
+* `Zero` represents zero
+* `(Succ n)` represents the successor of `n`
 
 ```
 (SYMP
-    (IDENT Inc
-        (FUNCTION
-            (PARAMS x)
-            (RESULT (Add x 1)))
-    
-    (IDENT Add
-        (PARAMS x y))))
+  (ID Succ
+      (PARAMS ...)))
 ```
 
-Now applying `Inc` rewrites the expression:
+For example:
 
 ```
-(Inc 4)
-// → (Add 4 1)
+(Succ Zero)
 ```
 
-Note that `Add` is still symbolic here. Symp has expanded the function body by substituting `x` with `4`, but no numeric evaluation occurs.
+represents `1`, and:
 
-### Example 4: Nested Reduction
+```
+(Succ (Succ Zero))
+```
 
-Functions may reference other functions and constants.
+represents `2`.
+
+#### Recursive Function: `Length`
+
+We now define a recursive function `Length`:
 
 ```
 (SYMP
-    (IDENT Two
-        (RESULT 2))
+  (ID True
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT (FAH Args))))
 
-    (IDENT Double
-        (FUNCTION
-            (PARAMS x)
-            (RESULT (Add x x))))
+  (ID False
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT (FAH (RAH Args)))))
 
-    (IDENT Quad
-        (FUNCTION
-            (PARAMS x)
-            (RESULT (Double (Double x)))))
-    
-    (IDENT Add
-        (PARAMS x y)))
+  (ID Succ
+      (PARAMS ...))
+  
+  (ID Length
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT
+        ((IsEmpty Args)
+          Zero
+          (Succ (Length (RAH Args))))))))
+```
+
+Informally:
+
+* If the list is empty, return `Zero`
+* Otherwise, return `Succ (Length rest-of-list)`
+
+Although this resembles a conditional, it is expressed entirely using function calls and emptiness testing.
+
+#### Calling the Recursive Function
+
+Consider the list:
+
+```
+(L "a" "b" "c")
 ```
 
 Evaluating:
 
 ```
-(Quad Two)
+(Length (L "a" "b" "c"))
 ```
 
-proceeds conceptually as:
+Reduction proceeds as follows (informally):
+
+1. `Length` is applied to `(L "a" "b" "c")`
+2. `(RAH Args)` becomes `(L "b" "c")`
+3. Recursive call: `(Length (L "b" "c"))`
+4. Recursive call: `(Length (L "c"))`
+5. Recursive call: `(Length (L))`
+6. Base case returns `Zero`
+7. Successive `Succ` applications build the result
+
+Final reduced form:
 
 ```
-(Double (Double Two))
-→ (Double (Add 2 2))
-→ (Add (Add 2 2) (Add 2 2))
+(Succ (Succ (Succ Zero)))
 ```
 
-Symp repeatedly expands functions and replaces constants until no further rewriting applies.
+#### What This Demonstrates
 
-### Example 5: Fixed Parameters and Projections
+This example illustrates several important properties of Symp Core:
 
-Parameters can be projected by name when their structure is known.
+* **Recursion is structural**: each recursive call operates on a smaller term.
+* **No stack or environment exists**: recursion is just repeated substitution and reduction.
+* **Termination is semantic, not enforced**: incorrect base cases lead to infinite reduction.
+* **Functions are rewrite rules**: recursive calls expand the term until no rules apply.
 
-```
-(SYMP
-    (IDENT Pair
-        (PARAMS a b))
+A useful way to think about recursion in Symp Core is:
 
-    (IDENT First
-        (FUNCTION
-            (PARAMS p)
-            (RESULT p.a)))
+> *Each recursive call rewrites the expression into a slightly simpler one, until the expression can no longer be rewritten.*
 
-    (IDENT Second
-        (FUNCTION
-            (PARAMS p)
-            (RESULT p.b))))
-```
+There is no notion of “returning” from a call — only of reducing a term until it stabilizes.
 
-Using these definitions:
+### 3.11. Errors as Values
 
-```
-(First (Pair 10 20))
-// → 10
+Errors are ordinary terms and propagate structurally.
 
-(Second (Pair 10 20))
-// → 20
+```lisp
+(FAH "hello")
 ```
 
-Here, `p.a` and `p.b` refer to the first and second arguments of the `Pair` expression. Projection is structural and resolved during substitution.
+Reduction result:
 
-### Example 6: Variadic Parameters and Expansion
-
-Symp supports variadic parameter lists.
-
-```
-(SYMP
-    (IDENT List
-        (PARAMS ...)))
+```lisp
+(ERROR "'First' requires list as parameter")
 ```
 
-`List` accepts any number of parameters:
+Because errors are values, they can be passed around and inspected like any other term.
 
-```
-(List 1 2 3)
-// → (List 1 2 3)
-```
+### 3.12. Summary
 
-The special expansion form `...` flattens lists during evaluation:
+From these examples, we can observe that:
 
-```
-(List 1 2 (... 3 4))
-// → (List 1 2 3 4)
-```
+* Computation happens only through list reduction.
+* Functions are applied via substitution, not variable binding.
+* Arguments are accessed structurally using `Args`.
+* Lists serve both as code and data.
+* Control flow and recursion are possible by resolving list heads.
+* Errors are explicit terms, not control-flow mechanisms.
 
-Expansion happens before the final expression is returned, allowing flexible macro-like constructs.
-
-### Example 7: Structural Projections (`head` and `tail`)
-
-For variadic expressions, Symp provides positional projections.
-
-```
-(SYMP
-    (IDENT Head
-        (FUNCTION
-            (PARAMS x)
-            (RESULT x.head)))
-
-    (IDENT Tail
-        (FUNCTION
-            (PARAMS x)
-            (RESULT x.tail)))
-    
-    (IDENT List
-        (PARAMS ...)))
-```
-
-Using them:
-
-```
-(Head (List 1 2 3))
-// → 1
-
-(Tail (List 1 2 3))
-// → (List 2 3)
-```
-
-These projections allow recursive and structural manipulation without explicit pattern-matching syntax.
-
-### Example 8: Modules and Aliases
-
-Modules may be nested using aliases.
-
-```
-(SYMP
-    (ALIAS Math
-        (SYMP
-            (IDENT Zero
-                (RESULT 0))
-
-            (IDENT Inc
-                (FUNCTION
-                    (PARAMS x)
-                    (RESULT (Add x 1))))
-
-            (IDENT Add
-                (PARAMS x y)))))
-```
-
-Identifiers can refer to module-qualified names:
-
-```
-Math/Zero
-// → 0
-
-(Math/Inc 5)
-// → (Math/Add 5 1)
-```
-
-Module paths are explicit and preserved during evaluation.
-
-### Example 9: Equality as a Built-in Form
-
-Symp includes special identifiers with custom evaluation rules.
-
-```
-(Eq 1 1)
-// → TRUE
-
-(Eq (Inc 1) 2)
-// → False
-```
-
-`Eq` evaluates both arguments and compares their resulting expressions structurally.
-
-### Example 10: Putting It All Together
-
-A symbolic length function for lists:
-
-```
-(SYMP
-    (IDENT True
-        (FUNCTION
-            (PARAMS x y)
-            (RESULT x)))
-
-    (IDENT False
-        (FUNCTION
-            (PARAMS x y)
-            (RESULT y)))
-
-    (IDENT Len
-        (FUNCTION
-            (PARAMS xs)
-            (RESULT
-                ((Eq xs nil)
-                    0
-                    (Inc (Len xs.tail)))))))
-```
-
-While still symbolic, this example demonstrates:
-
-* Recursive function expansion
-* Structural projections
-* Built-in comparison
-* List head depending on function result
-* Explicit termination conditions
-
-### Summary
-
-Through these examples, we have seen that:
-
-* Symp programs are rewritten, not executed
-* Functions expand by substitution
-* Parameters support structural access
-* Modules control name resolution
-* Symbolic and evaluative constructs coexist naturally
-
-Symp encourages thinking in terms of **structure and transformation**, making it especially well-suited for symbolic computation, metaprogramming, and domain-specific languages.
+These properties make Symp Core small, predictable, and well-suited for symbolic and structural computation.
 
 ## 4. Conclusion
 
-This document has presented the specification of the Symp core language, including its formal syntax, informal semantics, and a sequence of illustrative examples. Symp defines computation as structural transformation over symbolic expressions, emphasizing explicitness, compositionality, and simplicity of the core model.
+Symp Core defines a small but expressive computational model centered on symbolic term reduction. By eliminating variables, environments, and implicit evaluation, it exposes the mechanics of computation in a direct and inspectable way.
 
-By avoiding implicit environments and runtime state, Symp provides a deterministic and transparent evaluation strategy based on substitution and rewriting. Its module system enables explicit name resolution and controlled composition, while projections and variadic constructs allow expressive manipulation of structured data.
+The language demonstrates that:
 
-The Symp core is intentionally minimal. It is not intended to compete with general-purpose programming languages, but rather to serve as a foundational layer upon which richer symbolic, functional, imperative, or domain-specific systems can be built. Future specifications may extend this core with additional evaluation rules, typing disciplines, or computational effects, while preserving the principles outlined here.
+* meaningful computation can be expressed purely through structural rewriting,
+* functions can be modeled as substitution rules rather than executable procedures,
+* control flow can emerge from data structure and head resolution,
+* and errors can be treated as values rather than exceptional control paths.
 
-In summary, Symp offers a compact yet expressive framework for reasoning about and transforming symbolic structures, making it a suitable foundation for advanced metaprogramming and symbolic computation systems.
+While Symp Core is intentionally minimal, it provides a solid foundation upon which richer abstractions—such as pattern matching, typing disciplines, macro systems, or domain-specific languages—can be built.
+
+As a core calculus, Symp Core prioritizes clarity and determinism over convenience. Its simplicity makes it well-suited for experimentation, formal reasoning, and as a substrate for exploring alternative language designs.
 

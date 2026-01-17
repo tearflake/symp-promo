@@ -1,0 +1,164 @@
+/////////////////////////////////
+// Symp Core v0.x (Pseudocode) //
+/////////////////////////////////
+
+// program
+
+ModuleTree      : {
+    item        : Module,
+    children    : Map<String, ModuleTree>
+}
+
+// module
+
+Module          : Map<String, (Params | Function)>
+Params          : {}
+Result          : {
+    result      : Term
+}
+Function        : Params & Result
+
+// expression
+
+Term            : Atom | List
+Atom            : Identifier | Literal
+List            : {
+    head: Identifier,
+    tail: [ Term ]
+}
+Identifier      : {
+    module      : [ String ],
+    idName      : String,
+}
+Literal         : String
+
+// interpreter
+
+function reduce(expr: Term, moduleTree: ModuleTree): Term
+    while true
+        if expr is Literal
+            return expr
+        
+        if expr is Identifier
+            [ok, module] = getModule(moduleTree, expr)
+            if (not ok) or (not expr.idName in module)
+                return {head: {module: [], idName: "ERROR"}, tail: [`Unknown identifier: '${expr}'`]}
+            
+            return expr // Identifiers are inert unless in head position;
+        
+        head = reduce(expr.head, moduleTree)
+        if head is Identifier
+            if head.idName == "Args" or head.idName == "ERROR" // arg list and error are valid heads
+                return expr
+            
+            if head.idName == "Eq" // test for atom equality
+                if expr.tail.length != 2
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'Eq' requires two parameters`]}
+                                    
+                if reduce(expr.tail[0], moduleTree) == reduce(expr.tail[1], moduleTree)
+                    expr = {module: [], idName: "True"}
+                    continue
+                
+                else
+                    expr = {module: [], idName: "False"}
+                    continue
+            
+            if head.idName == "IsAtom" // test if argument is atom
+                if expr.tail.length != 1
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsAtm' requires one parameter`]}
+                                    
+                if reduce(expr.tail[0]) is Atom
+                    expr = {module: [], idName: "True"}
+                    continue
+                
+                else
+                    expr = {module: [], idName: "False"}
+                    continue
+            
+            if head.idName == "IsEmpty" // test for list is empty
+                if expr.tail.length != 1
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires one parameter`]}
+                
+                redExpr = reduce(expr.tail[0], moduleTree)
+                if not redExpr is List
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires list as parameter`]}
+
+                if (redExpr.tail.length == 0)
+                    expr = {module: [], idName: "True"}
+                    continue
+                
+                else
+                    expr = {module: [], idName: "False"}
+                    continue
+            
+            if head.idName == "FAH" // first element after head
+                if expr.tail.length != 1
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires one parameter`]}
+                
+                redExpr = reduce(expr.tail[0], moduleTree)
+                if not redExpr is List
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' requires list as parameter`]}
+
+                if (redExpr.tail.length == 0)
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'First' on empty list`]}
+                
+                expr = redExpr.tail[0]
+                continue
+            
+            if head.idName == "RAH" // rest of elements after head
+                if expr.tail.length != 1
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'Rest' requires one parameter`]}
+                
+                redExpr = reduce(expr.tail[0], moduleTree)
+                if not redExpr is List
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'Rest' requires list as parameter`]}
+                
+                if (redExpr.tail.length == 0)
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'Rest' on empty list`]}
+                
+                expr = {head: redExpr.head, tail: redExpr.tail[1..]}
+                continue
+            
+            if head.idName == "IAH" // insert element after head
+                if expr.tail.length != 2
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'Prepend' requires two parameters`]}
+                
+                redExpr = reduce(expr.tail[1], moduleTree)
+                if not redExpr is List
+                    return {head: {module: [], idName: "ERROR"}, tail: [`'Prepend' requires list as second parameter`]}
+
+                expr = {head: redExpr.head, tail: [reduce(expr.tail[0], moduleTree), ...redExpr.tail]}
+                continue
+                
+            [ok, module] = getModule(moduleTree, head)
+            if ok and (head.idName in module)
+                if module[head.idName] is Function
+                    expr = substitute(module[head.idName].result, {head: head, tail: expr.tail}, moduleTree)
+                    continue
+                
+                return {head: head, tail: expr.tail.map((e) => reduce(e, moduleTree))}
+        
+        return {head: {module: [], idName: "ERROR"}, tail: [`Head must reduce to identifier`]}
+
+function getModule(moduleTree: ModuleTree, expr: Identifier): [Boolean, Module]
+    module = moduleTree
+    for mod in expr.module
+        if not mod in module.children
+            return [false, null]
+        
+        module = module.children[mod]
+    
+    return [true, module.item]
+
+function substitute(expr: Term, args: List, moduleTree: ModuleTree): Term
+    if expr is Atom
+        if expr is Identifier
+            if expr.idName == "Args"
+                return {head: {module: [], idName: "Args"}, tail: args.tail}
+        
+            return {module: [...args.head.module, ...expr.module], idName: expr.idName} // all module paths are relative
+            
+        return expr
+
+    return {head: substitute(expr.head, args, moduleTree), tail: expr.tail.map((e) => substitute(e, args, moduleTree)}
+
