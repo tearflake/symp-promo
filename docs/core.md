@@ -60,7 +60,7 @@ This section introduces the formal syntax and the informal semantic model underl
 
 ### 2.1. Formal Syntax
 
-In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp core language itself resembles a kind of S-expression. S-expressions consist of atoms or lists of other S-expressions where lists are surrounded by parenthesis. In Symp core, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
+In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp core language itself resembles a kind of S-expression. S-expressions consist of atoms or lists of other S-expressions where lists are surrounded by parenthesis. In Symp Core, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
 
 ```
 /////////////////////////////////////////////////////////
@@ -164,7 +164,7 @@ Parameters are **irreducible**:
 * they cannot be applied as functions,
 * and they never reduce further.
 
-When a parameter appears in the head position of a list, the list itself becomes irreducible. Its arguments may still be reduced, but the overall structure is preserved.
+Parameters are identifiers with no rewrite rule; they exist solely to name irreducible structure. Its arguments may still be reduced, but the overall structure is preserved.
 
 Semantically, parameters represent:
 
@@ -198,7 +198,7 @@ There are no named parameters and no pattern matching at the core level.
 
 #### Built-in reducible identifiers
 
-Certain identifiers (such as `Eq`, `IsAtom`, `IsEmpty`, `FAH`/ *first-after-head*, `RAH` / *rest-after-head*, and `IAH` / *insert-after-head*) are treated as built-in reducible functions with fixed reduction rules. These form the minimal operational core of the language and are not defined within the module system itself.
+Certain identifiers (such as `IsEq`, `IsAtom`, `IsEmpty`, `FAH` [*first-after-head*], `RAH` [*rest-after-head*], and `IAH` [*insert-after-head*]) are treated as built-in reducible functions with fixed reduction rules. These form the minimal operational core of the language and are not defined within the module system itself.
 
 #### Normal forms
 
@@ -280,12 +280,12 @@ At this point, `Foo` has no meaning because it is not defined in any module.
 
 Some identifiers have predefined semantics when used as list heads.
 
-#### Equality: `Eq`
+#### Equality: `IsEq`
 
-The `Eq` built-in tests atomic equality of two reduced terms:
+The `IsEq` built-in tests atom equality of two reduced terms:
 
 ```
-(Eq "a" "a")
+(IsEq "a" "a")
 ```
 
 Reduction result:
@@ -295,7 +295,7 @@ True
 ```
 
 ```lisp
-(Eq "a" "b")
+(IsEq "a" "b")
 ```
 
 Reduction result:
@@ -518,10 +518,10 @@ Although Symp Core has no built-in conditionals, conditional behavior can be exp
   (ID Branch
     (FUNCTION
       (PARAMS ...)
-      (RESULT ((EQ (FAH Args) Zero) Foo Bar))))
+      (RESULT ((IsEq (FAH Args) Zero) Foo Bar))))
 ```
 
-Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `Eq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
+Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `IsEq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
 
 Calling `Branch`:
 
