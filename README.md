@@ -81,3 +81,15 @@ It is optimized for clarity, exactness, and inspectability.
 
 * [Core Specs](docs/core)
 
+---
+
+## Devices
+
+the periphery of the system
+
+---
+
+```
+// WORK IN PROGRESS //
+```
+
