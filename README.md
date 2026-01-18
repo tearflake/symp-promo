@@ -54,6 +54,12 @@ Together, they form an integrated system capable of performing any kind of compu
 
 ---
 
+## Core
+
+the heart of the system
+
+---
+
 #### What can core be used for?
 
 The core is designed for problems where structure matters more than presentation.

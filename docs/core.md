@@ -453,7 +453,7 @@ Reduction steps:
 
 1. `Echo` resolves to a function.
 2. Its result term is substituted.
-3. `Args` is replaced by the argument list.
+3. `Args` is replaced by the `(Args ...)` where `...` stands for the argument list.
 
 Final result:
 
@@ -518,7 +518,7 @@ Although Symp Core has no built-in conditionals, conditional behavior can be exp
   (ID Branch
     (FUNCTION
       (PARAMS ...)
-      (RESULT ((IsEq (FAH Args) Zero) Foo Bar)))))
+      (RESULT ((IsEq (FAH Args) Zero) "a" "b")))))
 ```
 
 Function `True` returns the first, while function `False` returns the second parameter. Reducing the predicate `IsEq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
@@ -529,13 +529,13 @@ Calling `Branch`:
 (Branch Zero)
 ```
 
-represents `Foo`, and:
+represents `"a"`, and:
 
 ```
 (Branch (Succ Zero))
 ```
 
-represents `Bar`
+represents `"b"`
 
 ### 3.10. Recursive Pattern Example
 
@@ -697,7 +697,7 @@ The language demonstrates that:
 * control flow can emerge from data structure and head resolution,
 * and errors can be treated as values rather than exceptional control paths.
 
-While Symp Core is intentionally minimal, it provides a solid foundation upon which richer abstractions—such as pattern matching, typing disciplines, macro systems, or domain-specific languages—can be built.
+While Symp Core is intentionally minimal, it provides a foundation upon which richer abstractions—such as pattern matching, typing disciplines, macro systems, or domain-specific languages—can be built.
 
 As a core calculus, Symp Core prioritizes clarity and determinism over convenience. Its simplicity makes it well-suited for experimentation, formal reasoning, and as a substrate for exploring alternative language designs.
 
