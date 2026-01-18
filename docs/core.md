@@ -206,7 +206,7 @@ A term is in **normal form** if no reduction rule applies. This includes:
 
 * literals,
 * identifiers,
-* lists whose head reduces to a parameter,
+* lists whose head reduces to irreducible parameters,
 * lists whose head is a built-in form that explicitly preserves the expression.
 
 Normal forms are final results of computation.
@@ -278,7 +278,7 @@ At this point, `Foo` has no meaning because it is not defined in any module.
 
 ### 3.3. Built-in Predicates
 
-Some identifiers have predefined semantics when used as list heads.
+Some identifiers have predefined semantics when used as list heads. Examples in this subsection will assume `Foo` identifier is defined:
 
 #### Equality: `IsEq`
 
@@ -294,8 +294,8 @@ Reduction result:
 True
 ```
 
-```lisp
-(IsEq "a" "b")
+```
+(IsEq "a" (Foo "bar"))
 ```
 
 Reduction result:
@@ -326,7 +326,7 @@ Applied to a list:
 (IsAtom (Foo "bar"))
 ```
 
-Reduction result (assuming `FOO` is defined and doesn't reduce to an atom):
+Reduction result:
 
 ```
 False
@@ -340,13 +340,13 @@ The `IsEmpty` built-in tests whether a list has zero elements:
 (IsEmpty (Foo))
 ```
 
-Reduction result (assuming `FOO` is defined and doesn't reduce to an atom):
+Reduction result:
 
 ```
 True
 ```
 
-Applied to a list (assuming `FOO` is defined and doesn't reduce to an atom):
+Applied to a list:
 
 ```
 (IsEmpty (Foo "bar"))
@@ -495,7 +495,7 @@ This allows functions to construct and transform lists.
 
 ### 3.9. A Conditional Pattern
 
-Although Symp Core has no built-in conditionals, conditional behavior can be expressed using parametric list heads. In the following example, we define different behavior relative to its head.
+Although Symp Core has no built-in conditionals, conditional behavior can be expressed using parametric list heads. In the following example, we define branching behavior relative to its head.
 
 ```
 (SYMP
@@ -513,15 +513,15 @@ Although Symp Core has no built-in conditionals, conditional behavior can be exp
       (PARAMS ...))
 
   (ID Succ
-      (PARAMS ...)))
+      (PARAMS ...))
 
   (ID Branch
     (FUNCTION
       (PARAMS ...)
-      (RESULT ((IsEq (FAH Args) Zero) Foo Bar))))
+      (RESULT ((IsEq (FAH Args) Zero) Foo Bar)))))
 ```
 
-Function `True` returns the first, while the function `False` returns the second parameter. Reducing the predicate `IsEq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
+Function `True` returns the first, while function `False` returns the second parameter. Reducing the predicate `IsEq` yields either `True` or `False` at the list head, deciding will it branch to the first or the second argument.
 
 Calling `Branch`:
 
@@ -680,7 +680,8 @@ From these examples, we can observe that:
 * Functions are applied via substitution, not variable binding.
 * Arguments are accessed structurally using `Args`.
 * Lists serve both as code and data.
-* Control flow and recursion are possible by resolving list heads.
+* Control flow branching is possible by resolving list head.
+* Function body may refer to itself, thus forming a recursion.
 * Errors are explicit terms, not control-flow mechanisms.
 
 These properties make Symp Core small, predictable, and well-suited for symbolic and structural computation.
