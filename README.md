@@ -77,7 +77,7 @@ It is optimized for clarity, exactness, and inspectability.
 
 ---
 
-## Docs
+#### Docs
 
 * [Core Specs](docs/core)
 
