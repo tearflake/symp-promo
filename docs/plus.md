@@ -216,9 +216,7 @@ In Symp Core, `FAH Args` would need to be written explicitly. Symp Plus allows a
 (ID Pair
   (Params ...)
   (RESULT
-    (L
-      (FAH Args)
-      (FAH (RAH Args)))))
+    (L (FAH Args) (FAH (RAH Args)))))
 ```
 
 #### Final reduction result
@@ -254,9 +252,7 @@ Parameter order determines structure. Reordering parameters changes the generate
   (FUNCTION
     (PARAMS ...)
     (RESULT
-      L
-      (FAH Args)
-      (FAH Args))))
+      (L (FAH Args) (FAH Args)))))
 ```
 
 #### Final reduction result
