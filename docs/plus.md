@@ -132,7 +132,7 @@ where `RAH` is applied `i` times.
 
 This transformation is purely syntactic and does not depend on runtime values.
 
-Arity checking in Symp Plus is not decidable during compile time, therefore not performed. Any possible arity mismatch errors are here propagated to the run-time error checking mechanism.
+Arity checking using only Symp Plus internals is not decidable during compile time due to parametric head positions, therefore not performed. Any possible arity mismatch errors are here propagated to the run-time error checking mechanism. However, more complete static analysis may exist externally to Symp Plus.
 
 #### Consequences of Compilation
 
