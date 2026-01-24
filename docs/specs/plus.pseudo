@@ -65,9 +65,9 @@ function getStruct(seed: Identifier, param: String, params: String[]): Term
     for i = 0..params.length
         if param == params[i]
             for j = 0..i
-                seed = {head: {module: [], idName: "RAH"}, tail: seed}
+                seed = {head: {module: [], idName: "RAH"}, tail: [seed]}
             
-            return {head: {module: [], idName: "FAH"}, tail: seed}
+            return {head: {module: [], idName: "FAH"}, tail: [seed]}
             
     return {head: {module: [], idName: "ERROR"}, tail: [`Undefined parameter`]}
 
