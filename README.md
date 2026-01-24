@@ -79,7 +79,8 @@ It is optimized for clarity, exactness, and inspectability.
 
 #### Docs
 
-* [Core Specs](docs/core)
+* [Symp Core Specs](docs/core)
+* [Symp Plus Specs](docs/plus)
 
 ---
 

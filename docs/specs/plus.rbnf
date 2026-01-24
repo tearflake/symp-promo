@@ -1,0 +1,20 @@
+/////////////////////////////////////////////////////////
+//                                                     //
+//  Relaxed BNF rules for S-expr based Symp Plus v0.x  //
+//                                                     //
+//  Notes:                                             //
+//  - in this grammar, `...` reads as a terminal       //
+//  - `*` marks zero or more occurrences               //
+//                                                     //
+/////////////////////////////////////////////////////////
+
+<start> := (SYMP <alias>* <ident>*)
+         | (FILE <ATOMIC>)
+
+<alias> := (ALIAS <ATOMIC> <start>)
+
+<ident> := (ID <ATOMIC> <term>)
+
+<term> := (PARAMS ...)
+        | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
+

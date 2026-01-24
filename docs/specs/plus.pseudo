@@ -1,0 +1,73 @@
+/////////////////////////////////
+// Symp Plus v0.x (Pseudocode) //
+/////////////////////////////////
+
+// program
+
+ModuleTree      : {
+    item        : Module,
+    children    : Map<String, ModuleTree>
+}
+
+// module
+
+Module          : Map<String, (Params | Function)>
+Params          : {}
+Function        : {
+    params      : String[]
+    result      : Term
+}
+
+// expression
+
+Term            : Atom | List
+Atom            : Identifier | Literal | Parameter
+List            : {
+    head: Identifier,
+    tail: Term[]
+}
+Identifier      : {
+    module      : String[],
+    idName      : String,
+}
+Literal         : String
+Parameter       : String
+
+// compiler: parameter resolution pass
+
+function compile(moduleTree: ModuleTree): ModuleTree
+    module = {item: [], children: []}
+    for item in moduleTree.item
+        if item.value is Function
+            module.item[item.key] = {result: substitute(item.value.result, item.value.params)}
+    
+        if item.value is Params
+            module.item[item.key] = {}
+    
+    for child in moduleTree.children
+        module.children[child.key] = compile(child.value)
+    
+    return module
+
+function substitute(expr: Term, params: String[]): Term
+    if expr is Parameter
+        return getStruct({module: [], idName: "Args"}, expr, params)
+        
+    if expr is literal
+        return expr
+    
+    if expr is Identifier
+        return expr
+    
+    return {head: substitute(expr.head, params), tail: expr.tail.map((e) => substitute(e, params)}
+
+function getStruct(seed: Identifier, param: String, params: String[]): Term
+    for i = 0..params.length
+        if param == params[i]
+            for j = 0..i
+                seed = {head: {module: [], idName: "RAH"}, tail: seed}
+            
+            return {head: {module: [], idName: "FAH"}, tail: seed}
+            
+    return {head: {module: [], idName: "ERROR"}, tail: [`Undefined parameter`]}
+
