@@ -55,7 +55,17 @@ This section outlines the syntactic additions and the compilation semantics that
 In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp Plus language itself resembles a kind of S-expression. S-expressions consist of lists of atoms or other S-expressions where lists are surrounded by parenthesis. In Symp Plus, the first list element to the left determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
 
 ```
-<start> := (SYMP <alias>+ <ident>+)
+/////////////////////////////////////////////////////////
+//                                                     //
+//  Relaxed BNF rules for S-expr based Symp Plus v0.x  //
+//                                                     //
+//  Notes:                                             //
+//  - in this grammar, `...` reads as a terminal       //
+//  - `*` marks zero or more occurrences               //
+//                                                     //
+/////////////////////////////////////////////////////////
+
+<start> := (SYMP <alias>* <ident>*)
          | (FILE <ATOMIC>)
 
 <alias> := (ALIAS <ATOMIC> <start>)
@@ -203,9 +213,12 @@ In Symp Core, `FAH Args` would need to be written explicitly. Symp Plus allows a
 #### Compilation result (conceptual)
 
 ```
-(L
-  (FAH Args)
-  (FAH (RAH Args)))
+(ID Pair
+  (Params ...)
+  (RESULT
+    (L
+      (FAH Args)
+      (FAH (RAH Args)))))
 ```
 
 #### Final reduction result
@@ -237,9 +250,13 @@ Parameter order determines structure. Reordering parameters changes the generate
 #### Compilation result (conceptual)
 
 ```
-(L
-  (FAH Args)
-  (FAH Args))
+(ID Dup
+  (FUNCTION
+    (PARAMS ...)
+    (RESULT
+      L
+      (FAH Args)
+      (FAH Args))))
 ```
 
 #### Final reduction result
@@ -291,7 +308,7 @@ The following two definitions are semantically equivalent.
 ```
 (ID Second
   (FUNCTION
-    (PARAMS)
+    (PARAMS ...)
     (RESULT (FAH (RAH Args)))))
 ```
 
