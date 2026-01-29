@@ -48,6 +48,7 @@ code {
   border-radius: 3px;
   /*padding: 0.2em;*/
   font-size: 85%;
+  font-family: monospace;
 }
 pre {
   background-color: #f6f8fa;
