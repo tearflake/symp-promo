@@ -11,7 +11,7 @@ layout: docs
 > Advanced programmers
 > 
 > **[abstract]**  
-> ...
+> Symp Star is a symbolic processing framework for validating the structural admissibility of programs, plans, and workflows. Rather than reasoning about values or execution, Symp Star operates solely on declared interface obligations and projection capabilities, ensuring that symbolic expressions are composed in structurally valid ways. The system is intentionally value-agnostic, execution-independent, and decidable by design. By making structural assumptions explicit and mechanically checkable, Symp Star prevents a broad class of errors arising from invalid composition, missing capabilities, and unsafe structural assumptions. This specification defines the formal syntax of Symp Star, explains its informal structural semantics, and illustrates its use through progressively refined examples.
 
 ## Table of Contents
 
@@ -326,7 +326,7 @@ The example reinforces the idea that structure is compositional and that require
 (GetMail (User "Jane" "jane@mymail.com")) -> "jane@mymail.com"
 ```
 
-### Example 4 — UNION and CAST
+### Example 4 — Union and Cast
 
 This example explores how a function can safely accept multiple structural shapes and how a value moves from possibility to commitment. It introduces structural alternatives using `UNION`, and shows the need for explicit narrowing. The function demonstrated can work with either emails or phone numbers, but it must explicitly take responsibility for narrowing before using a specific capability.
 
@@ -368,7 +368,7 @@ This example makes it clear that Symp refuses silent narrowing. The programmer m
 (Notify (User "Jack" (SMS   "sms"   "+1555123456"    ))) -> "+155512345"
 ```
 
-### Example 5 — PARAMETRIC Interfaces
+### Example 5 — Parametric Interfaces
 
 This final example introduces interfaces that abstract over structure itself. Its purpose is to demonstrate reusability through parametric structural constraints. The function shown works over any interface, illustrating structural polymorphism without relying on traditional types or concrete values.
 
