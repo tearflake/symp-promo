@@ -284,7 +284,7 @@ This example focuses on what happens when a structural obligation is not met. It
 (SYMP
     (ID HasValue
         (EXPECTS
-            (PRAMS value)
+            (PARAMS value)
             (PRODUCT String)))
     
     ...)
@@ -323,7 +323,7 @@ This example demonstrates how independent capabilities can be combined. It intro
 The example reinforces the idea that structure is compositional and that required capabilities can be satisfied independently.
 
 ```
-(GetMail (User "Jane" "jane@mymail.com")) -> "jane@mymail.com"
+(GetEmail (User "Jane" "jane@mymail.com")) -> "jane@mymail.com"
 ```
 
 ### Example 4 — Union and Cast

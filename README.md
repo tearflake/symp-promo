@@ -83,9 +83,9 @@ It is optimized for clarity, exactness, and inspectability.
 
 #### Docs
 
-* [Symp Core Specs](docs/core)
-* [Symp Plus Specs](docs/plus)
-* [Symp Star Specs](docs/star)
+* [Symp Core Specs](docs/core) - Executes
+* [Symp Plus Specs](docs/plus) - Compiles
+* [Symp Star Specs](docs/star) - Validates
 
 ---
 
