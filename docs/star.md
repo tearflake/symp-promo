@@ -38,7 +38,7 @@ This section provides the conceptual foundation necessary to understand how Symp
 
 ### 2.1. Formal Syntax
 
-In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols that are considered to be correctly structured statements or expressions in that language. Symp star language itself resembles a kind of S-expression. S-expressions consist of atoms or lists of other S-expressions where lists are surrounded by parenthesis. In Symp Star, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
+In computer science, the syntax of a computer language is the set of rules that defines the combinations of symbols considered to be correctly structured statements or expressions in that language. Symp star language itself resembles a kind of S-expression. S-expressions consist of atoms or lists of other S-expressions where lists are surrounded by parenthesis. In Symp Star, the first list element to the left is called "head", and it determines a type of a list. There are a few predefined list types depicted by the following relaxed kind of Backus-Naur form syntax rules:
 
 ```
 /////////////////////////////////////////////////////////
@@ -66,11 +66,11 @@ In computer science, the syntax of a computer language is the set of rules that 
 <parametric> := (PARAMETRIC <ATOMIC>+ <entails>)
               | <entails>
 
-<entails> := (ENTAILS <interface> <interface>)
+<entails> := (ENTAILS <product> <product>)
            | <interface>
 
-<interface> := (INTERFACE <union>*)
-             | <union>
+<product> := (INTERFACE <union>*)
+           | <union>
 
 <union> := (UNION <primary>*)
          | <primary>
@@ -81,7 +81,7 @@ In computer science, the syntax of a computer language is the set of rules that 
 In addition to the above syntax grammar, we add the following embeddable syntax for accessing projections:
  
 ```
-<projection> := (Get <BASE> <ATOMIC>+)
+<projection> := (GET <BASE> <ATOMIC>+)
 ```
 
 The above grammar defines the syntax of Symp Star. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols (including `...`) are considered parts of the Symp Star grammar.
@@ -120,7 +120,7 @@ Semantic reasoning is inherently value-dependent, context-sensitive, and often u
 
 **Symbols, Identifiers, and Projections**
 
-In Symp Star, symbols name entities, while projections represent named structural capabilities that may be accessed from those entities using built-in `Get` interface. A projection denotes permission to access a particular capability, not the value that capability yields. Symp Star never inspects values themselves; it only checks whether a projection is structurally permitted.
+In Symp Star, symbols name entities, while projections represent named structural capabilities that may be accessed from those entities using built-in `GET` interface. A projection denotes permission to access a particular capability, not the value that capability yields. Symp Star never inspects values themselves; it only checks whether a projection is structurally permitted.
 
 **Interfaces as Structural Obligations**
 
@@ -263,7 +263,7 @@ This example introduces a function that requires a capability. Its purpose is to
         (EXPECTS
             (FUNCTION
                 (PARAMS x)
-                (RESULT (Get x name)))
+                (RESULT (GET x name)))
             
             (ENTAILS
                 (PRODUCT HasName)
@@ -285,7 +285,7 @@ This example focuses on what happens when a structural obligation is not met. It
     (ID HasValue
         (EXPECTS
             (PRAMS value)
-            (PRODUCT Number)))
+            (PRODUCT String)))
     
     ...)
 ```
@@ -293,7 +293,7 @@ This example focuses on what happens when a structural obligation is not met. It
 When we call the function with:
 
 ```
-(PrintName (HasValue 12)) -> Error in 'PrintName' function: expecting 'HasName' interface
+(PrintName (HasValue "12")) -> Error in 'PrintName' function: expecting 'HasName' interface
 ```
 
 the system rejects the call because the value provided does not expose the required structure. The error makes it explicit that `PrintName` expects a value conforming to the `HasName` interface.
@@ -313,7 +313,7 @@ This example demonstrates how independent capabilities can be combined. It intro
         (EXPECTS
             (FUNCTION
                 (PARAMS x)
-                (RESULT (Get x email)))
+                (RESULT (GET x email)))
             
             (ENTAILS
                 (PRODUCT User)
@@ -352,16 +352,16 @@ This example explores how a function can safely accept multiple structural shape
             (FUNCTION
                 (PARAMS x)
                 (RESULT
-                    ((Eq (Get x prefers tag) "email")
-                        (Get (Cast (Get x prefers) (Email "abc" "abc")) email )
-                        (Get (Cast (Get x prefers) (SMS   "abc" "abc")) number)))))
+                    ((Eq (GET x prefers tag) "email")
+                        (GET (Cast (GET x prefers) (Email "abc" "abc")) email )
+                        (GET (Cast (GET x prefers) (SMS   "abc" "abc")) number)))))
             
             (ENTAILS
                 (PRODUCT User)
-                (UNION String Number))))
+                String)))
 ```
 
-This example makes it clear that Symp refuses silent narrowing. The programmer must explicitly choose a structure by explicitly using the `Cast` function, and accept responsibility for that choice. Details about the `Cast` function are explained in the next section.
+This example makes it clear that Symp refuses silent narrowing. The programmer must explicitly choose a structure by explicitly using the `Cast` function, and accept responsibility for that choice. Details about the `Cast` function are explained in the section [Example 5].
 
 ```
 (Notify (User "Jill" (Email "email" "jill@mymail.com"))) -> "jill@mymail.com"
