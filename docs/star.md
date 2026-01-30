@@ -67,9 +67,9 @@ In computer science, the syntax of a computer language is the set of rules that 
               | <entails>
 
 <entails> := (ENTAILS <product> <product>)
-           | <interface>
+           | <product>
 
-<product> := (INTERFACE <union>*)
+<product> := (PRODUCT <union>*)
            | <union>
 
 <union> := (UNION <primary>*)
