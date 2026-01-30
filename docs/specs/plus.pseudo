@@ -4,38 +4,45 @@
 
 // program
 
-ModuleTree      : {
-    item        : Module,
-    children    : Map<String, ModuleTree>
+ModuleTree: {
+    item: Module,
+    children: Map<String, ModuleTree>
 }
 
 // module
 
-Module          : Map<String, (Params | Function)>
-Params          : {}
-Function        : {
-    params      : String[]
-    result      : Term
+Module: Map<String, (Params | Function)>
+
+Params: {}
+
+Function: {
+    params: String[]
+    result: Term
 }
 
 // expression
 
-Term            : Atom | List
-Atom            : Identifier | Literal | Parameter
-List            : {
+Term: Atom | List
+
+Atom: Identifier | Literal | Parameter
+
+List: {
     head: Identifier,
     tail: Term[]
 }
-Identifier      : {
-    module      : String[],
-    idName      : String,
+
+Identifier: {
+    module: String[],
+    idName: String,
 }
-Literal         : String
-Parameter       : String
+
+Literal: String
+
+Parameter: String
 
 // compiler: parameter resolution pass
 
-function compile(moduleTree: ModuleTree): ModuleTree
+function compilePlusToCore(moduleTree: ModuleTree): ModuleTree
     module = {item: [], children: []}
     for item in moduleTree.item
         if item.value is Function
@@ -45,7 +52,7 @@ function compile(moduleTree: ModuleTree): ModuleTree
             module.item[item.key] = {}
     
     for child in moduleTree.children
-        module.children[child.key] = compile(child.value)
+        module.children[child.key] = compilePlusToCore(child.value)
     
     return module
 
@@ -59,7 +66,7 @@ function substitute(expr: Term, params: String[]): Term
     if expr is Identifier
         return expr
     
-    return {head: substitute(expr.head, params), tail: expr.tail.map((e) => substitute(e, params)}
+    return {head: substitute(expr.head, params), tail: expr.tail.map(e => substitute(e, params)}
 
 function getStruct(seed: Identifier, param: String, params: String[]): Term
     for i = 0..params.length

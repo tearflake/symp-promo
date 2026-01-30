@@ -4,33 +4,38 @@
 
 // program
 
-ModuleTree      : {
-    item        : Module,
-    children    : Map<String, ModuleTree>
+ModuleTree: {
+    item: Module,
+    children: Map<String, ModuleTree>
 }
 
 // module
 
-Module          : Map<String, (Params | Function)>
-Params          : {}
-Result          : {
-    result      : Term
+Module: Map<String, (Params | Function)>
+
+Params: {}
+
+Function: {
+    result: Term
 }
-Function        : Params & Result
 
 // expression
 
-Term            : Atom | List
-Atom            : Identifier | Literal
-List            : {
+Term: Atom | List
+
+Atom: Identifier | Literal
+
+List: {
     head: Identifier,
-    tail: [ Term ]
+    tail: Term[]
 }
-Identifier      : {
-    module      : [ String ],
-    idName      : String,
+
+Identifier: {
+    module: String[],
+    idName: String,
 }
-Literal         : String
+
+Literal: String
 
 // interpreter
 
@@ -42,7 +47,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
         if expr is Identifier
             [ok, module] = getModule(moduleTree, expr)
             if (not ok) or (not expr.idName in module)
-                return {head: {module: [], idName: "ERROR"}, tail: [`Unknown identifier: '${expr}'`]}
+                return {head: {module: [], idName: "ERROR"}, tail: [`Unknown alias or identifier`]}
             
             return expr // Identifiers are inert unless in head position;
         
@@ -126,6 +131,8 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                 
                 return {head: head, tail: expr.tail.map((e) => reduce(e, moduleTree))}
         
+            return {head: {module: [], idName: "ERROR"}, tail: [`Unknown alias or identifier`]}
+            
         return {head: {module: [], idName: "ERROR"}, tail: [`Head must reduce to identifier`]}
 
 function getModule(moduleTree: ModuleTree, expr: Identifier): [Boolean, Module]
@@ -139,14 +146,14 @@ function getModule(moduleTree: ModuleTree, expr: Identifier): [Boolean, Module]
     return [true, module.item]
 
 function substitute(expr: Term, args: List, moduleTree: ModuleTree): Term
-    if expr is Atom
-        if expr is Identifier
-            if expr.idName == "Args"
-                return {head: {module: [], idName: "Args"}, tail: args.tail}
-        
-            return {module: [...args.head.module, ...expr.module], idName: expr.idName} // all module paths are relative
-            
+    if expr is literal
         return expr
 
-    return {head: substitute(expr.head, args, moduleTree), tail: expr.tail.map((e) => substitute(e, args, moduleTree)}
+    if expr is Identifier
+        if expr.idName == "Args"
+            return {head: {module: [], idName: "Args"}, tail: args.tail}
+    
+        return {module: [...args.head.module, ...expr.module], idName: expr.idName} // all module paths are relative
+    
+    return {head: substitute(expr.head, args, moduleTree), tail: expr.tail.map(e => substitute(e, args, moduleTree)}
 

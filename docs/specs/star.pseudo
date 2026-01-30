@@ -1,3 +1,5 @@
+// WARNING - not refined, may contain errors
+
 /*
 ## 1. High-level architecture
 
@@ -13,10 +15,7 @@ The Symp Star framework is best seen as **three passes**:
 
 // ---------- Expressions ----------
 
-StarTerm:
-    | StarAtom
-    | StarList
-    | StarGet
+StarTerm: StarAtom | StarList | StarGet
 
 StarAtom: Identifier | Literal
 
@@ -34,16 +33,16 @@ StarGet: {
 
 InterfaceExpr: Entails
 
-Entails: {
-    kind: "ENTAILS"
-    input: Interface
-    output: Interface
-} | Parametric
-
 Parametric: {
     kind: "PARAMETRIC"
     vars: string[]
     body: InterfaceExpr
+} | Entails
+
+Entails: {
+    kind: "ENTAILS"
+    input: Interface
+    output: Interface
 } | Product
 
 Product: {
@@ -51,12 +50,12 @@ Product: {
     items: InterfaceExpr[]
 } | Union
 
-type Union: {
+Union: {
     kind: "UNION"
     items: InterfaceExpr[]
-} | Atomic
+} | Atom
 
-Atomic: String
+Atom: String
 
 // ---------- Declarations ----------
 
