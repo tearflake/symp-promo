@@ -495,7 +495,7 @@ This allows functions to construct and transform lists.
 
 ### 3.9. A Conditional Pattern
 
-Although Symp Core has no built-in conditionals, conditional behavior can be expressed using parametric list heads. In the following example, we define branching behavior relative to its head.
+Although Symp Core has no built-in conditionals, conditional behavior can be expressed using parametric list heads. In the following example, we define head-relative branching behavior.
 
 ```
 (SYMP

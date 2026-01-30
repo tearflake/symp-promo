@@ -2,33 +2,64 @@
 // Symp Plus v0.x (Pseudocode) //
 /////////////////////////////////
 
-// program
+// core program
 
-ModuleTree: {
-    item: Module,
-    children: Map<String, ModuleTree>
+CoreModuleTree: {
+    item: PlusModule,
+    children: Map<String, CoreModuleTree>
 }
 
-// module
+CoreModule: Map<String, CoreDecl>
 
-Module: Map<String, (Params | Function)>
-
-Params: {}
-
-Function: {
-    params: String[]
-    result: Term
+CoreDecl: {
+    kind: "PARAMS"
+} | {
+    kind: "FUNCTION"
+    result: CoreTerm
 }
 
-// expression
+// core expression
 
-Term: Atom | List
+CoreTerm: CoreAtom | CoreList
 
-Atom: Identifier | Literal | Parameter
+CoreAtom: Identifier | Literal
 
-List: {
+CoreList: {
     head: Identifier,
-    tail: Term[]
+    tail: CoreTerm[]
+}
+
+Identifier: {
+    module: String[],
+    idName: String,
+}
+
+// plus program
+
+PlusModuleTree: {
+    item: PlusModule,
+    children: Map<String, PlusModuleTree>
+}
+
+PlusModule: Map<String, PlusDecl>
+
+PlusDecl: {
+    kind: "PARAMS"
+} | {
+    kind: "FUNCTION"
+    params: String[]
+    result: PlusTerm
+}
+
+// plus expression
+
+PlusTerm: PlusAtom | PlusList
+
+PlusAtom: Identifier | Literal | Parameter
+
+PlusList: {
+    head: Identifier,
+    tail: PlusTerm[]
 }
 
 Identifier: {
@@ -42,21 +73,21 @@ Parameter: String
 
 // compiler: parameter resolution pass
 
-function compilePlusToCore(moduleTree: ModuleTree): ModuleTree
+function compilePlusToCore(moduleTree: PlusModuleTree): CoreModuleTree
     module = {item: [], children: []}
     for item in moduleTree.item
-        if item.value is Function
-            module.item[item.key] = {result: substitute(item.value.result, item.value.params)}
+        if item.value.kind == "FUNCTION"
+            module.item[item.key] = {kind: "FUNCTION", result: substitute(item.value.result, item.value.params)}
     
-        if item.value is Params
-            module.item[item.key] = {}
+        if item.value.kind == "PARAMS"
+            module.item[item.key] = {kind: "PARAMS"}
     
     for child in moduleTree.children
         module.children[child.key] = compilePlusToCore(child.value)
     
     return module
 
-function substitute(expr: Term, params: String[]): Term
+function substitute(expr: PlusTerm, params: String[]): CoreTerm
     if expr is Parameter
         return getStruct({module: [], idName: "Args"}, expr, params)
         
@@ -68,7 +99,7 @@ function substitute(expr: Term, params: String[]): Term
     
     return {head: substitute(expr.head, params), tail: expr.tail.map(e => substitute(e, params)}
 
-function getStruct(seed: Identifier, param: String, params: String[]): Term
+function getStruct(seed: Identifier, param: String, params: String[]): CoreTerm
     for i = 0..params.length
         if param == params[i]
             for j = 0..i

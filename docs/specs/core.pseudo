@@ -4,30 +4,29 @@
 
 // program
 
-ModuleTree: {
-    item: Module,
-    children: Map<String, ModuleTree>
+CoreModuleTree: {
+    item: PlusModule,
+    children: Map<String, CoreModuleTree>
 }
 
-// module
+CoreModule: Map<String, CoreDecl>
 
-Module: Map<String, (Params | Function)>
-
-Params: {}
-
-Function: {
-    result: Term
+CoreDecl: {
+    kind: "PARAMS"
+} | {
+    kind: "FUNCTION"
+    result: CoreTerm
 }
 
 // expression
 
-Term: Atom | List
+CoreTerm: CoreAtom | CoreList
 
-Atom: Identifier | Literal
+CoreAtom: Identifier | Literal
 
-List: {
+CoreList: {
     head: Identifier,
-    tail: Term[]
+    tail: CoreTerm[]
 }
 
 Identifier: {
@@ -39,7 +38,7 @@ Literal: String
 
 // interpreter
 
-function reduce(expr: Term, moduleTree: ModuleTree): Term
+function reduce(expr: CoreTerm, moduleTree: CoreModuleTree): CoreTerm
     while true
         if expr is Literal
             return expr
@@ -68,7 +67,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                 if expr.tail.length != 1
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IsAtom' requires one parameter`]}
                                     
-                cond = (reduce(expr.tail[0]) is Atom)
+                cond = (reduce(expr.tail[0]) is CoreAtom)
                 expr = {module: [], idName: (cond ? "True" : "False"}
                 continue
             
@@ -77,7 +76,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
-                if not redExpr is List
+                if not redExpr is CoreList
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires list as parameter`]}
 
                 cond = (redExpr.tail.length == 0)
@@ -89,7 +88,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                     return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
-                if not redExpr is List
+                if not redExpr is CoreList
                     return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' requires list as parameter`]}
 
                 if (redExpr.tail.length == 0)
@@ -103,7 +102,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                     return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
-                if not redExpr is List
+                if not redExpr is CoreList
                     return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' requires list as parameter`]}
                 
                 if (redExpr.tail.length == 0)
@@ -117,7 +116,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IAH' requires two parameters`]}
                 
                 redExpr = reduce(expr.tail[1], moduleTree)
-                if not redExpr is List
+                if not redExpr is CoreList
                     return {head: {module: [], idName: "ERROR"}, tail: [`'IAH' requires list as second parameter`]}
 
                 expr = {head: redExpr.head, tail: [reduce(expr.tail[0], moduleTree), ...redExpr.tail]}
@@ -125,7 +124,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
                 
             [ok, module] = getModule(moduleTree, head)
             if ok and (head.idName in module)
-                if module[head.idName] is Function
+                if module[head.idName].kind == "FUNCTION"
                     expr = substitute(module[head.idName].result, {head: head, tail: expr.tail}, moduleTree)
                     continue
                 
@@ -135,7 +134,7 @@ function reduce(expr: Term, moduleTree: ModuleTree): Term
             
         return {head: {module: [], idName: "ERROR"}, tail: [`Head must reduce to identifier`]}
 
-function getModule(moduleTree: ModuleTree, expr: Identifier): [Boolean, Module]
+function getModule(moduleTree: CoreModuleTree, expr: Identifier): [Boolean, CoreModule]
     module = moduleTree
     for mod in expr.module
         if not mod in module.children
@@ -145,8 +144,8 @@ function getModule(moduleTree: ModuleTree, expr: Identifier): [Boolean, Module]
     
     return [true, module.item]
 
-function substitute(expr: Term, args: List, moduleTree: ModuleTree): Term
-    if expr is literal
+function substitute(expr: CoreTerm, args: CoreList, moduleTree: CoreModuleTree): CoreTerm
+    if expr is Literal
         return expr
 
     if expr is Identifier
