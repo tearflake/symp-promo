@@ -1,0 +1,247 @@
+/*
+## 1. High-level architecture
+
+The Symp Star framework is best seen as **three passes**:
+
+1. **Interface collection**
+   Extract declared interfaces (`EXPECTS`, `ENTAILS`, `PARAMETRIC`) into a validation environment.
+2. **Structural validation**
+   Walk expressions and ensure every `GET`, application, and composition is admissible.
+3. **Erasure / projection**
+   Strip all Star-only constructs, yielding **pure Symp Plus**.
+*/
+
+// ---------- Expressions ----------
+
+StarTerm:
+    | StarAtom
+    | StarList
+    | StarGet
+
+StarAtom: Identifier | Literal
+
+StarList: {
+    head: Identifier
+    tail: StarTerm[]
+}
+
+StarGet: {
+    base: StarTerm
+    projection: string[]
+}
+
+// ---------- Interfaces ----------
+
+InterfaceExpr: Entails
+
+Entails: {
+    kind: "ENTAILS"
+    input: Interface
+    output: Interface
+} | Parametric
+
+Parametric: {
+    kind: "PARAMETRIC"
+    vars: string[]
+    body: InterfaceExpr
+} | Product
+
+Product: {
+    kind: "PRODUCT"
+    items: InterfaceExpr[]
+} | Union
+
+type Union: {
+    kind: "UNION"
+    items: InterfaceExpr[]
+} | Atomic
+
+Atomic: String
+
+// ---------- Declarations ----------
+
+Expects:
+    | {
+          kind: "PARAMS"
+          params: string[]
+          interface: InterfaceExpr
+      }
+    | {
+          kind: "FUNCTION"
+          params: string[]
+          result: StarTerm
+          entails: Entails
+      }
+
+StarDefinition: {
+    name: string
+    expects: Expects
+}
+
+StarModule: {
+    definitions: StarDefinition[]
+}
+
+InterfaceEnv: {
+    definitions: Map<string, Interface>
+    projections: Map<string, Set<string>>
+}
+
+// compiler
+
+function compileStarToPlus(starModule: StarModule): PlusModule
+    env = collectInterfaces(starModule)
+    validateModule(starModule, env)
+    return eraseStarAnnotations(starModule)
+
+// Pass 1: Interface collection
+
+function collectInterfaces(module: StarModule): InterfaceEnv
+    env = {
+        definitions: new Map(),
+        projections: new Map()
+    }
+
+    for def in module.definitions
+        if def.expects.kind == "PARAMS"
+            env.definitions.set(def.name, def.expects.interface)
+            recordProjections(def.expects.interface, env)
+
+    return env
+
+function recordProjections(intf: InterfaceExpr, env: InterfaceEnv): void
+    switch (intf.kind)
+        case "PRODUCT"
+            intf.items.forEach(i => recordProjections(i, env))
+            break
+
+        case "UNION":
+            intf.items.forEach(i => recordProjections(i, env))
+            break
+
+        case "PARAMETRIC":
+            recordProjections(intf.body, env)
+            break
+
+        case "ENTAILS":
+            recordProjections(intf.input, env)
+            recordProjections(intf.output, env)
+            break
+
+        default:
+            if !env.projections.has(intf)
+                env.projections.set(intf, new Set())
+
+// Pass 2: Structural validation
+
+function validateModule(module: StarModule, env: InterfaceEnv): void
+    for def in module.definitions
+        validateDefinition(def, env)
+
+function validateDefinition(def: StarDefinition, env: InterfaceEnv): void
+    if def.expects.kind === "FUNCTION"
+        validateFunction(def.expects, env)
+
+function validateFunction(fn: ExpectsDecl & { kind: "FUNCTION" }, env: InterfaceEnv): void
+    const paramInterfaces = fn.entails.input
+    const resultInterface = fn.entails.output
+
+    validateTerm(fn.result, paramInterfaces, env)
+
+    // Ensure declared output is structurally producible
+    ensureEntails(paramInterfaces, resultInterface, env)
+
+function validateTerm(
+    term: StarTerm,
+    context: InterfaceExpr,
+    env: InterfaceEnv
+): InterfaceExpr
+    if term is StarAtom
+        return context
+
+    if term is StarGet
+        return validateGet(term, context, env)
+
+    return validateApplication(term, context, env)
+
+function validateGet(
+    get: StarGet,
+    context: InterfaceExpr,
+    env: InterfaceEnv
+): InterfaceExpr
+    baseInterface = validateTerm(get.base, context, env)
+
+    if isUnion(baseInterface)
+        throw new Error(
+            "Cannot project from UNION without Cast"
+        )
+
+    for proj in get.projection
+        if (!supportsProjection(baseInterface, proj, env))
+            throw new Error(
+                `Missing projection '${proj}'`
+            )
+
+    return AtomicInterface("Any")
+
+function validateApplication(
+    list: StarList,
+    context: InterfaceExpr,
+    env: InterfaceEnv
+): InterfaceExpr
+    fnInterface = env.definitions.get(list.head.idName)
+
+    if !fnInterface
+        throw new Error(`Unknown function ${list.head.idName}`)
+
+    argInterfaces = list.tail.map(arg => validateTerm(arg, context, env)
+
+    if !interfacesSatisfy(argInterfaces, fnInterface, env)
+        throw new Error(`Interface mismatch in call to ${list.head.idName}`)
+
+    return extractResultInterface(fnInterface)
+
+function ensureEntails(
+    input: InterfaceExpr,
+    output: InterfaceExpr,
+    env: InterfaceEnv
+): void
+    if !isSubsetInterface(output, input, env)
+        throw new Error("Declared output not entailed by input")
+
+function isSubsetInterface(
+    required: InterfaceExpr,
+    provided: InterfaceExpr,
+    env: InterfaceEnv
+): boolean
+    // PRODUCT ⊆ PRODUCT
+    // required UNION must be fully covered
+    // PARAMETRIC handled by substitution
+    // no negation, no existentials
+    // always terminates
+
+    // (implementation omitted but purely structural)
+    return true
+
+// Pass 3: Erasure / projection
+
+function eraseStarAnnotations(module: StarModule): PlusModule
+    return {
+        definitions: module.definitions.map(def => ({
+            name: def.name,
+            value: eraseExpects(def.expects)
+        }))
+    }
+
+function eraseExpects(expects: ExpectsDecl): PlusFunction | PlusParams
+    if expects.kind == "PARAMS"
+        return {}
+
+    return {
+        params: expects.params,
+        result: eraseTerm(expects.result)
+    }
+
+// `GET`, `EXPECTS`, `ENTAILS`, `PARAMETRIC`, `UNION`, `PRODUCT` — **all erased**.
+// Only executable Symp Plus remains.
+

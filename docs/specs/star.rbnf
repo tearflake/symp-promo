@@ -1,0 +1,36 @@
+/////////////////////////////////////////////////////////
+//                                                     //
+//  Relaxed BNF rules for S-expr based Symp Star v0.x  //
+//                                                     //
+/////////////////////////////////////////////////////////
+
+<start> := (SYMP <alias>* <ident>*)
+         | (FILE <ATOMIC>)
+
+<alias> := (ALIAS <ATOMIC> <start>)
+
+<ident> := (ID <ATOMIC> <term>)
+
+<term> := (EXPECTS <params> <expects>)
+        | (EXPECTS <function> <expects>)
+
+<params> := (PARAMS <ATOMIC>*)
+
+<function> := (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
+
+<expects> := <parametric>
+
+<parametric> := (PARAMETRIC <ATOMIC>+ <entails>)
+              | <entails>
+
+<entails> := (ENTAILS <product> <product>)
+           | <product>
+
+<product> := (PRODUCT <union>*)
+           | <union>
+
+<union> := (UNION <primary>*)
+         | <primary>
+
+<primary> := <ATOMIC>
+
