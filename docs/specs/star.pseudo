@@ -1,0 +1,368 @@
+/*
+## 1. High-level architecture
+
+The Symp Star framework is best seen as **three passes**:
+
+1. **validate parameters**
+   Build pairs param -> interface.
+2. **validate results**
+   Walk expressions and ensure every `GET`, application, and composition is admissible.
+3. **Erasure / projection**
+   Strip all Star-only constructs, yielding **pure Symp Plus**.
+*/
+
+// plus program
+
+PlusModuleTree: {
+    item: PlusModule,
+    children: Map<String, PlusModuleTree>
+}
+
+PlusModule: Map<String, PlusDecl>
+
+PlusDecl: {
+    kind: "PARAMS"
+} | {
+    kind: "FUNCTION"
+    params: String[]
+    result: PlusTerm
+}
+
+// plus expression
+
+PlusTerm: PlusAtom | PlusList
+
+PlusAtom: Identifier | Literal | Parameter
+
+PlusList: {
+    head: Identifier,
+    tail: PlusTerm[]
+}
+
+// star program
+
+StarModuleTree: {
+    item: StarModule,
+    children: Map<String, StarModuleTree>
+}
+
+StarModule: Map<String, StarDecl>
+
+StarDecl: {
+    kind: "PARAMS"
+    params: String[]
+    interface: InterfaceExpr
+} | {
+    kind: "FUNCTION"
+    params: String[]
+    result: StarTerm
+    interface: InterfaceExpr
+}
+
+// star expression
+
+StarTerm: StarAtom | StarList | StarGet
+
+StarAtom: Identifier | Literal | Parameter
+
+StarList: {
+    head: Identifier
+    tail: StarTerm[]
+}
+
+StarGet: {
+    base: StarTerm
+    projection: string[]
+}
+
+Identifier: {
+    module: String[],
+    id: String,
+}
+
+Literal: String
+
+Parameter: String
+
+// star interface
+
+InterfaceExpr: Parametric
+
+Parametric: {
+    kind: "PARAMETRIC"
+    vars: string[]
+    body: Entails
+} | Entails
+
+Entails: {
+    kind: "ENTAILS"
+    input: Product
+    output: Product
+} | Product
+
+Product: {
+    kind: "PRODUCT"
+    items: { label: string, value: Union }[]
+} | Union
+
+Union: {
+    kind: "UNION"
+    items: Atom[]
+} | Atom
+
+Atom: AtomParameter | AtomIdentifier | AtomLiteral
+
+EnvModule: Map<String, InterfaceExpr>
+
+// compiler
+
+function compileStarToPlus(module: StarModule): PlusModule
+    envMod = validateParams(module)
+    validateResults(module, envMod)
+    
+    return eraseAnnotations(module)
+
+// pass 1
+
+function validateParams(module: StarModule): EnvModule
+    envMod = []
+    for decl in module
+        if module[decl].kind == "FUNCTION"
+            if module[decl].interface.kind != "ENTAILS"
+                throw Error(`Interface error, expected: 'ENTAILS'`)
+        
+            intf = module[decl].interface.input
+        
+        else if module[decl].kind == "PARAMS"
+            intf = module[decl].interface
+        
+        if intf.items.kind != "PRODUCT"
+            throw Error(`Interface error, expected: 'PRODUCT'`)
+        
+        if module[decl].params.length != intf.items.length
+            throw Error(`Params count not matching, expected count: ${intf.items.length}`)
+        
+        envMod[decl] = module[decl].interface
+    
+    return envMod
+
+// pass 2
+
+function validateResults(module: StarModule, env: EnvModule): void
+    for decl in module
+        if module[decl].kind == "FUNCTION"
+            inferred = inferInterface(module[decl].result, module[decl].params, env)
+            checkSatisfies(inferred, module[decl].interface.output)
+
+function inferInterface(term: StarTerm, params: String[], env: EnvModule): InterfaceExpr
+    switch term:
+    if term is Parameter p
+        return AtomParameter(p)
+    
+    if term is Identifier i
+        if not i in env
+            throw Error(`Identifier not found: ${i}`)
+
+        return AtomIdentifier(i)
+    
+    if term is Literal
+        return AtomLiteral("String")
+    
+    if term is StarGet(base, projection):
+        baseIntf = inferInterface(base, [], env)
+        return inferProjection(baseIntf, projection)
+    
+    if term is StarList(head, args):
+        tmpIntf = inferInterface(head, [], env)
+        if tmpIntf is not AtomIdentifier
+            throw Error(`Head is not an identifier`)
+        
+        argIntfs = args.map(arg => inferInterface(arg, [], env))
+        if tmpIntf.kind == "ENTAILS"
+            return applyEntails(tmpIntf, params, argIntfs)
+            
+        else if tmpIntf.kind == "PRODUCT"
+            return checkParams(tmpIntf, argIntfs)
+    
+    throw Error(`Interface mismatch`)
+
+function checkParams(paramsIntf: InterfaceExpr, args: InterfaceExpr[]): InterfaceExpr
+    if paramsIntf.items.length != args.length
+        throw Error(`Arity mismatch`)
+    
+    for i in 0..args.length
+        checkSatisfies(args[i], paramsIntf.items[i].value)
+
+    return {kind: "PRODUCT", items: paramsIntf.items}
+        
+function applyEntails(funcIntf: InterfaceExpr, params: String[], args: InterfaceExpr[]): InterfaceExpr
+    input = funcIntf.input
+    output = funcIntf.output
+    if input.items.length != args.length
+        throw Error(`Arity mismatch`)
+    
+    for i in 0..args.length
+        checkSatisfies(args[i], input.items[i].value)
+    
+    return substituteParams(output, params, args)
+
+function checkSatisfies(actual: InterfaceExpr, required: InterfaceExpr): void
+    if required is AtomParameter or required is AtomIdentifier or required is AtomLiteral
+        if actual != required
+            throw Error("Atom mismatch")
+
+    if required.kind == "PRODUCT"
+        if actual.kind != "PRODUCT"
+            throw Error(`Expected PRODUCT`)
+
+        for i in 0..required.items.length
+            checkSatisfies(actual.items[i], required.items[i])
+
+    if required.kind == "UNION"
+        if actual.kind == "UNION"
+            // exact mode
+            throw Error(`Cast required`)
+        
+        else
+            for alt in required.items
+                try {
+                    checkSatisfies(actual, alt)
+                    return
+                }
+            
+            throw Error(`No UNION alternative satisfied`)
+
+    if required.kind == "PARAMETRIC"
+        checkParametric(actual, required)
+
+function inferProjection(base: InterfaceExpr, path: string[]): InterfaceExpr
+    if base.kind == "UNION"
+        throw Error(`Cast required`)
+
+    current = base
+    for p in path:
+        if current.kind != "PRODUCT"
+            throw Error(`Cannot project '${p}' from non-product`)
+
+        entry = current.items.find(item => item.label == p)
+        if entry == null
+            throw Error(`Missing projection: ${p}`)
+
+        current = entry.value
+
+    return current
+
+function substituteParams(output: InterfaceExpr, params: String[], args: InterfaceExpr[]): InterfaceExpr
+    env = []
+    for i in 0..params.length
+        env[params[i]] = args[i]
+
+    return substitute(output, env)
+
+function substitute(expr: InterfaceExpr, env: SubstEnv): InterfaceExpr
+    // Atom
+    if expr is Atom
+        if expr in env
+            return env[expr]
+        else
+            return expr
+
+    // UNION
+    if expr.kind == "UNION"
+        return {
+            kind: "UNION",
+            items: expr.items.map(item => substitute(item, env))
+        }
+
+    // PRODUCT
+    if expr.kind == "PRODUCT"
+        return {
+            kind: "PRODUCT",
+            items: expr.items.map(item => {label: item.label, value: substitute(item.value, env)})
+        }
+
+    // ENTAILS (rare, but allowed in parametrics)
+    if expr.kind == "ENTAILS"
+        return {
+            kind: "ENTAILS",
+            input: substitute(expr.input, env),
+            output: substitute(expr.output, env)
+        }
+
+    // PARAMETRIC
+    if expr.kind == "PARAMETRIC"
+        // IMPORTANT: shadowing!
+        shadowedEnv = env.clone()
+        for v in expr.vars
+            shadowedEnv.remove(v)
+
+        return {
+            kind: "PARAMETRIC",
+            vars: expr.vars,
+            body: substitute(expr.body, shadowedEnv)
+        }
+
+function checkParametric(actual, parametric): void
+    // 1. Create fresh placeholders
+    freshVars = []
+    for v in parametric.vars
+        freshVars[v] = FreshInterfaceVar(v)
+
+    // 2. Instantiate body
+    instantiated = substitute(parametric.body, freshVars)
+
+    // 3. Try to unify actual with instantiated body
+    return unifyInterfaces(actual, instantiated, freshVars)
+
+function unifyInterfaces(actual, expected, env): void
+    if expected is FreshVar
+        if env[expected] is unbound
+            env[expected] = actual
+            return
+            
+        else
+            checkSatisfies(actual, env[expected])
+            return
+
+    if expected is Atom
+        if actual == expected
+            return
+        
+        throw Error(`Interface mismatch`)
+
+    if expected.kind == "PRODUCT"
+        if actual.kind != "PRODUCT"
+            throw Error(`Interface mismatch`)
+        
+        if actual.items.length != expected.items.length
+            throw Error(`'PRODUCT' arity mismatch`)
+        
+        for i in 0..actual.items.length
+            unifyInterfaces(actual.items[i].value, expected.items[i].value, env)
+
+    if expected.kind == "UNION"
+        throw Error(`Cast required`)
+
+    if expected.kind == "ENTAILS"
+        throw Error(`Cannot directly satisfy ENTAILS without application`)
+
+// pass 3
+
+function eraseAnnotations(module: StarModule): PlusModule
+    return {
+        definitions: module.definitions.map(def => {
+            name: def.name,
+            value: eraseExpects(def.expects)
+        })
+    }
+
+function eraseExpects(expects: StarDecl): PlusDecl
+    if expects.kind == "PARAMS"
+        return {kind: "PARAMS", params: expects.params}
+
+    return {
+        kind: "FUNCTION"
+        params: expects.params,
+        result: expects.result
+    }
+
