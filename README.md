@@ -83,9 +83,9 @@ It is optimized for clarity, exactness, and inspectability.
 
 #### Docs
 
-* [Symp Core Specs](docs/core) - Executes
-* [Symp Plus Specs](docs/plus) - Compiles
-* [Symp Star Specs](docs/star) - Validates
+* Core: what runs [[specifications](docs/core)] [[pseudocode](docs/specs/core.pseudo)]
+* Plus: how humans write [[specifications](docs/plus)] [[pseudocode](docs/specs/plus.pseudo)]
+* Star: what is allowed to exist [[specifications](docs/star)] [[pseudocode](docs/specs/star.pseudo)]
 
 ---
 

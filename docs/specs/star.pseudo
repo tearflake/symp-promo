@@ -23,8 +23,8 @@ PlusModule: Map<String, PlusDecl>
 PlusDecl: {
     kind: "PARAMS"
 } | {
-    kind: "FUNCTION"
-    params: String[]
+    kind: "FUNCTION",
+    params: PlusList,
     result: PlusTerm
 }
 
@@ -49,94 +49,128 @@ StarModuleTree: {
 StarModule: Map<String, StarDecl>
 
 StarDecl: {
-    kind: "PARAMS"
-    params: String[]
-    interface: InterfaceExpr
+    kind: "PARAMS",
+    params: StarList,
+    interface: Interface
 } | {
-    kind: "FUNCTION"
-    params: String[]
-    result: StarTerm
-    interface: InterfaceExpr
+    kind: "FUNCTION",
+    params: StarList,
+    result: StarTerm,
+    interface: Interface
 }
 
 // star expression
 
 StarTerm: StarAtom | StarList | StarGet
 
-StarAtom: Identifier | Literal | Parameter
+StarAtom: Identifier | Literal | Parameter | Variable
 
 StarList: {
-    head: Identifier
+    head: Identifier,
     tail: StarTerm[]
 }
 
 StarGet: {
-    base: StarTerm
+    base: StarTerm,
     projection: string[]
 }
 
 Identifier: {
     module: String[],
-    id: String,
+    label: String
 }
 
 Literal: String
 
 Parameter: String
 
+Variable: String
+
 // star interface
 
-InterfaceExpr: Parametric
+Interface: Parametric
 
 Parametric: {
-    kind: "PARAMETRIC"
-    vars: string[]
+    kind: "PARAMETRIC",
+    vars: string[],
     body: Entails
 } | Entails
 
 Entails: {
-    kind: "ENTAILS"
-    input: Product
+    kind: "ENTAILS",
+    input: Product,
     output: Product
 } | Product
 
 Product: {
-    kind: "PRODUCT"
-    items: { label: string, value: Union }[]
+    kind: "PRODUCT",
+    items: {label: string, value: Union}[]
 } | Union
 
 Union: {
-    kind: "UNION"
-    items: Atom[]
-} | Atom
+    kind: "UNION",
+    items: Primary[],
+} | Primary
 
-Atom: AtomParameter | AtomIdentifier | AtomLiteral
+Primary: {
+    kind: "LITERAL",
+    value: String
+} | {
+    kind: "PARAMETER",
+    label: String
+} | {
+    kind: "IDENTIFIER",
+    module: String[],
+    label: String
+} | {
+    kind: "VARIABLE",
+    label: String
+}
 
-EnvModule: Map<String, InterfaceExpr>
+EnvModuleTree: {
+    item: EnvModule,
+    children: Map<String, EnvModuleTree>
+}
+
+EnvModule: Map<String, Interface>
 
 // compiler
 
-function compileStarToPlus(module: StarModule): PlusModule
-    envMod = validateParams(module)
-    validateResults(module, envMod)
+function compileStarToPlus(moduleTree: StarModuleTree): PlusModuleTree
+    envModTree = getInterfaceTree(moduleTree)
+    validateResults(moduleTree, envModTree)
     
-    return eraseAnnotations(module)
+    return eraseAnnotations(moduleTree)
 
 // pass 1
 
-function validateParams(module: StarModule): EnvModule
+function getInterfaceTree(moduleTree: StarModuleTree): EnvModuleTree
+    envModTree = {item: getInterfaces(moduleTree.item), children: []}
+    
+    for child in moduleTree.children
+        envModTree.children[child.key] = getInterfaceTree(child.value)
+    
+    return envModTree
+
+function getInterfaces(module: StarModule): EnvModule
     envMod = []
     for decl in module
+        if module[decl].interface.kind == "PARAMETRIC"
+            declItem = module[decl].interface.body
+        
+        else
+            declItem = module[decl].interface
+
         if module[decl].kind == "FUNCTION"
-            if module[decl].interface.kind != "ENTAILS"
+            if declItem.kind != "ENTAILS"
                 throw Error(`Interface error, expected: 'ENTAILS'`)
         
-            intf = module[decl].interface.input
+            intf = declItem.input
         
         else if module[decl].kind == "PARAMS"
-            intf = module[decl].interface
+            intf = declItem
         
-        if intf.items.kind != "PRODUCT"
+        if intf.kind != "PRODUCT"
             throw Error(`Interface error, expected: 'PRODUCT'`)
         
         if module[decl].params.length != intf.items.length
@@ -148,75 +182,128 @@ function validateParams(module: StarModule): EnvModule
 
 // pass 2
 
-function validateResults(module: StarModule, env: EnvModule): void
+function validateResults(moduleTree: StarModuleTree, envTree: EnvModuleTree): void
+    module = moduleTree.item
     for decl in module
         if module[decl].kind == "FUNCTION"
-            inferred = inferInterface(module[decl].result, module[decl].params, env)
-            checkSatisfies(inferred, module[decl].interface.output)
+            inferred = computeStructuralInterface(module[decl].params, envTree)
+            checkSatisfies(inferred, module[decl].interface.output, [])
 
-function inferInterface(term: StarTerm, params: String[], env: EnvModule): InterfaceExpr
+    for i = 0..moduleTree.children.length
+        validateResults(moduleTree.children[i], envTree.children[i])
+
+function computeStructuralInterface(term: StarTerm, envTree: EnvModuleTree): Interface
     switch term:
+    if term is Literal l
+        return {kind: "LITERAL", value: "String"}
+    
     if term is Parameter p
-        return AtomParameter(p)
+        return {kind: "PARAMETER", label: p}
     
     if term is Identifier i
-        if not i in env
-            throw Error(`Identifier not found: ${i}`)
-
-        return AtomIdentifier(i)
+        return {kind: "IDENTIFIER", module: i.module, label: i.label}
     
-    if term is Literal
-        return AtomLiteral("String")
+    if term is Variable v
+        return {kind: "VARIABLE", label: v}
     
     if term is StarGet(base, projection):
-        baseIntf = inferInterface(base, [], env)
+        baseIntf = computeStructuralInterface(base, envTree)
         return inferProjection(baseIntf, projection)
     
     if term is StarList(head, args):
-        tmpIntf = inferInterface(head, [], env)
-        if tmpIntf is not AtomIdentifier
-            throw Error(`Head is not an identifier`)
+        headIntf = computeStructuralInterface(head, envTree)
+        if headIntf.kind != "IDENTIFIER"
+            throw Error(`Head does not resolve to identifier`)
         
-        argIntfs = args.map(arg => inferInterface(arg, [], env))
-        if tmpIntf.kind == "ENTAILS"
-            return applyEntails(tmpIntf, params, argIntfs)
+        [ok, env] = getEnv(envTree, headIntf)
+        if not ok
+            throw Error(`Alias not found`)
+
+        if not headIntf.label in env
+            throw Error(`Unknown identifier`)
+
+        tmpIntf = env[headIntf.label]
+        argIntfs = args.map(arg => computeStructuralInterface(arg, envTree))
+        vars = []
+        if tmpIntf.kind == "PARAMETRIC"
+            tmpIntf.vars.map(var => {vars[var] = null})
+            tmpIntf = tmpIntf.body
             
-        else if tmpIntf.kind == "PRODUCT"
-            return checkParams(tmpIntf, argIntfs)
+        if tmpIntf.kind == "PRODUCT"
+            return checkParams(tmpIntf, argIntfs, vars)
+        
+        if tmpIntf.kind == "ENTAILS"
+            params = tmpIntf.input.items.map(item => item.label)
+            return applyEntails(tmpIntf, params, argIntfs, vars)
     
     throw Error(`Interface mismatch`)
+    
+function getEnv(tree: EnvModuleTree, expr: Identifier): [Boolean, EnvModule]
+    module = tree
+    for mod in expr.module
+        if not mod in module.children
+            return [false, null]
+        
+        module = module.children[mod]
+    
+    return [true, module.item]
 
-function checkParams(paramsIntf: InterfaceExpr, args: InterfaceExpr[]): InterfaceExpr
+function checkParams(paramsIntf: Interface, args: Interface[], vars: Primary[]): Interface
     if paramsIntf.items.length != args.length
         throw Error(`Arity mismatch`)
     
     for i in 0..args.length
-        checkSatisfies(args[i], paramsIntf.items[i].value)
+        checkSatisfies(args[i], paramsIntf.items[i].value, vars)
 
-    return {kind: "PRODUCT", items: paramsIntf.items}
+    return paramsIntf
         
-function applyEntails(funcIntf: InterfaceExpr, params: String[], args: InterfaceExpr[]): InterfaceExpr
+function applyEntails(funcIntf: Interface, params: String[], args: Interface[], vars: Primary[]): Interface
     input = funcIntf.input
     output = funcIntf.output
     if input.items.length != args.length
         throw Error(`Arity mismatch`)
     
     for i in 0..args.length
-        checkSatisfies(args[i], input.items[i].value)
+        checkSatisfies(args[i], input.items[i].value, vars)
     
-    return substituteParams(output, params, args)
+    return substituteParams(output, params, args, vars)
 
-function checkSatisfies(actual: InterfaceExpr, required: InterfaceExpr): void
-    if required is AtomParameter or required is AtomIdentifier or required is AtomLiteral
-        if actual != required
-            throw Error("Atom mismatch")
+function checkSatisfies(actual: Interface, required: Interface, vars: Primary[]): void
+    if required.kind == "LITERAL"
+        if actual.kind != "LITERAL"
+            throw Error(`Literal mismatch`)
 
-    if required.kind == "PRODUCT"
-        if actual.kind != "PRODUCT"
-            throw Error(`Expected PRODUCT`)
+        if actual.value == required.value
+            return
+        
+        throw Error(`Atom mismatch`)
 
-        for i in 0..required.items.length
-            checkSatisfies(actual.items[i], required.items[i])
+    if required.kind == "PARAMETER"
+        if actual.kind != "PARAMETER"
+            throw Error(`Parameter mismatch`)
+
+        if actual.label == required.label
+            return
+        
+        throw Error(`Atom mismatch`)
+
+    if required.kind == "IDENTIFIER"
+        if actual.kind != "IDENTIFIER"
+            throw Error(`Identifier mismatch`)
+
+        if actual.module == required.module and actual.label == required.label
+            return
+        
+        throw Error(`Atom mismatch`)
+
+    if required.kind == "VARIABLE"
+        if vars[required.label] == null
+            vars[required.label] = actual
+            return
+        
+        else
+            checkSatisfies(actual, vars[required.label], vars)
+            return
 
     if required.kind == "UNION"
         if actual.kind == "UNION"
@@ -226,16 +313,26 @@ function checkSatisfies(actual: InterfaceExpr, required: InterfaceExpr): void
         else
             for alt in required.items
                 try {
-                    checkSatisfies(actual, alt)
+                    checkSatisfies(actual, alt, clone(vars))
                     return
                 }
             
             throw Error(`No UNION alternative satisfied`)
 
-    if required.kind == "PARAMETRIC"
-        checkParametric(actual, required)
+    if required.kind == "PRODUCT"
+        if actual.kind != "PRODUCT"
+            throw Error(`Expected 'PRODUCT'`)
+        
+        if actual.items.length != required.items.length
+            throw Error(`'PRODUCT' arity mismatch`)
 
-function inferProjection(base: InterfaceExpr, path: string[]): InterfaceExpr
+        for i in 0..actual.items.length
+            checkSatisfies(actual.items[i].value, required.items[i].value, vars)
+
+    if required.kind == "ENTAILS"
+        throw Error(`Cannot directly satisfy 'ENTAILS' without application`)
+
+function inferProjection(base: Interface, path: string[]): Interface
     if base.kind == "UNION"
         throw Error(`Cast required`)
 
@@ -252,117 +349,67 @@ function inferProjection(base: InterfaceExpr, path: string[]): InterfaceExpr
 
     return current
 
-function substituteParams(output: InterfaceExpr, params: String[], args: InterfaceExpr[]): InterfaceExpr
+function substituteParams(output: Interface, params: String[], args: Interface[], vars: Primary[]): Interface
     env = []
     for i in 0..params.length
         env[params[i]] = args[i]
 
-    return substitute(output, env)
+    return substitute(output, env, vars)
 
-function substitute(expr: InterfaceExpr, env: SubstEnv): InterfaceExpr
-    // Atom
-    if expr is Atom
-        if expr in env
-            return env[expr]
+function substitute(expr: Interface, env: SubstEnv, vars: Primary[]): Interface
+    if expr.kind == "LITERAL"
+        return expr
+        
+    if expr.kind == "PARAMETER"
+        if expr.label in env
+            return env[expr.label]
+        
         else
             return expr
+    
+    if expr.kind == "IDENTIFIER"
+        return expr
+    
+    if expr.kind == "VARIABLE"
+        if vars[expr.label] == null
+            throw Error(`Unbound parametric variable`)
+        
+        return substitute(vars[expr.label], env, vars)
 
-    // UNION
     if expr.kind == "UNION"
         return {
             kind: "UNION",
-            items: expr.items.map(item => substitute(item, env))
+            items: expr.items.map(item => substitute(item, env, clone(vars)))
         }
 
-    // PRODUCT
     if expr.kind == "PRODUCT"
         return {
             kind: "PRODUCT",
-            items: expr.items.map(item => {label: item.label, value: substitute(item.value, env)})
+            items: expr.items.map(item => {label: item.label, value: substitute(item.value, env, vars)})
         }
-
-    // ENTAILS (rare, but allowed in parametrics)
-    if expr.kind == "ENTAILS"
-        return {
-            kind: "ENTAILS",
-            input: substitute(expr.input, env),
-            output: substitute(expr.output, env)
-        }
-
-    // PARAMETRIC
-    if expr.kind == "PARAMETRIC"
-        // IMPORTANT: shadowing!
-        shadowedEnv = env.clone()
-        for v in expr.vars
-            shadowedEnv.remove(v)
-
-        return {
-            kind: "PARAMETRIC",
-            vars: expr.vars,
-            body: substitute(expr.body, shadowedEnv)
-        }
-
-function checkParametric(actual, parametric): void
-    // 1. Create fresh placeholders
-    freshVars = []
-    for v in parametric.vars
-        freshVars[v] = FreshInterfaceVar(v)
-
-    // 2. Instantiate body
-    instantiated = substitute(parametric.body, freshVars)
-
-    // 3. Try to unify actual with instantiated body
-    return unifyInterfaces(actual, instantiated, freshVars)
-
-function unifyInterfaces(actual, expected, env): void
-    if expected is FreshVar
-        if env[expected] is unbound
-            env[expected] = actual
-            return
-            
-        else
-            checkSatisfies(actual, env[expected])
-            return
-
-    if expected is Atom
-        if actual == expected
-            return
-        
-        throw Error(`Interface mismatch`)
-
-    if expected.kind == "PRODUCT"
-        if actual.kind != "PRODUCT"
-            throw Error(`Interface mismatch`)
-        
-        if actual.items.length != expected.items.length
-            throw Error(`'PRODUCT' arity mismatch`)
-        
-        for i in 0..actual.items.length
-            unifyInterfaces(actual.items[i].value, expected.items[i].value, env)
-
-    if expected.kind == "UNION"
-        throw Error(`Cast required`)
-
-    if expected.kind == "ENTAILS"
-        throw Error(`Cannot directly satisfy ENTAILS without application`)
+    
+    // ENTAILS never shows up
 
 // pass 3
 
-function eraseAnnotations(module: StarModule): PlusModule
-    return {
-        definitions: module.definitions.map(def => {
-            name: def.name,
-            value: eraseExpects(def.expects)
-        })
+function eraseAnnotations(moduleTree: StarModuleTree): PlusModuleTree
+    modTree = {
+        item: moduleTree.item.map(decl => eraseIntf(decl)),
+        children: []
     }
+    
+    for child in moduleTree.children
+        modTree.children[child.key] = eraseAnnotations(child.value)
+    
+    return modTree
 
-function eraseExpects(expects: StarDecl): PlusDecl
-    if expects.kind == "PARAMS"
-        return {kind: "PARAMS", params: expects.params}
+function eraseIntf(decl: StarDecl): PlusDecl
+    if decl.kind == "PARAMS"
+        return {kind: "PARAMS", params: decl.params}
 
     return {
         kind: "FUNCTION"
-        params: expects.params,
-        result: expects.result
+        params: decl.params,
+        result: decl.result
     }
 
