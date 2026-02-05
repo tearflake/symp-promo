@@ -358,7 +358,7 @@ function substituteParams(output: Interface, params: String[], args: Interface[]
     for i in 0..params.length
         env[params[i]] = args[i]
 
-    return substitute(output, env, envVars)
+    return substitute(output, env, envVars, [])
 
 function substitute(expr: Interface, env: SubstEnv, envVars: Interface[], occurVars: String[]): Interface
     if expr.kind == "LITERAL"
@@ -377,9 +377,6 @@ function substitute(expr: Interface, env: SubstEnv, envVars: Interface[], occurV
     if expr.kind == "VARIABLE"
         if envVars[expr.label] not exists
             throw Error(`Unbound parametric variable: ${expr.label}`)
-        
-        if occurVars not defined
-            occurVars = []
         
         if expr.label in occurVars
             throw Error(`Cyclic parametric variable detected: ${expr.label}`)
