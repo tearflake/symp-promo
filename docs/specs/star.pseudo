@@ -3,9 +3,9 @@
 
 The Symp Star framework is best seen as **three passes**:
 
-1. **validate parameters**
+1. **extract interfaces**
    Build pairs param -> interface.
-2. **validate results**
+2. **validate terms**
    Walk expressions and ensure every `GET`, application, and composition is admissible.
 3. **Erasure / projection**
    Strip all Star-only constructs, yielding **pure Symp Plus**.
@@ -15,10 +15,10 @@ The Symp Star framework is best seen as **three passes**:
 
 PlusModuleTree: {
     item: PlusModule,
-    children: Map<String, PlusModuleTree>
+    children: PlusModuleTree[]
 }
 
-PlusModule: Map<String, PlusDecl>
+PlusModule: PlusDecl[]
 
 PlusDecl: {
     kind: "PARAMS"
@@ -43,10 +43,10 @@ PlusList: {
 
 StarModuleTree: {
     item: StarModule,
-    children: Map<String, StarModuleTree>
+    children: StarModuleTree[]
 }
 
-StarModule: Map<String, StarDecl>
+StarModule: StarDecl[]
 
 StarDecl: {
     kind: "PARAMS",
@@ -63,7 +63,7 @@ StarDecl: {
 
 StarTerm: StarAtom | StarList | StarGet
 
-StarAtom: Identifier | Literal | Parameter | Variable
+StarAtom: Identifier | Literal | Parameter
 
 StarList: {
     head: Identifier,
@@ -75,6 +75,8 @@ StarGet: {
     projection: string[]
 }
 
+// shared expressions
+
 Identifier: {
     module: String[],
     label: String
@@ -84,15 +86,13 @@ Literal: String
 
 Parameter: String
 
-Variable: String
-
 // star interface
 
 Interface: Parametric
 
 Parametric: {
     kind: "PARAMETRIC",
-    vars: string[],
+    vars: String[],
     body: Entails
 } | Entails
 
@@ -123,16 +123,16 @@ Primary: {
     module: String[],
     label: String
 } | {
-    kind: "VARIABLE",
+    kind: "VARIABLE",   //pattern matching capture
     label: String
 }
 
 EnvModuleTree: {
     item: EnvModule,
-    children: Map<String, EnvModuleTree>
+    children: EnvModuleTree[]
 }
 
-EnvModule: Map<String, Interface>
+EnvModule: Interface[]
 
 // compiler
 
@@ -140,42 +140,20 @@ function compileStarToPlus(moduleTree: StarModuleTree): PlusModuleTree
     envModTree = getInterfaceTree(moduleTree)
     validateResults(moduleTree, envModTree)
     
-    return eraseAnnotations(moduleTree)
+    return eraseAnnotationsTree(moduleTree)
 
 // pass 1
 
 function getInterfaceTree(moduleTree: StarModuleTree): EnvModuleTree
     envModTree = {item: getInterfaces(moduleTree.item), children: []}
-    
     for child in moduleTree.children
-        envModTree.children[child.key] = getInterfaceTree(child.value)
+        envModTree.children[child] = getInterfaceTree(moduleTree.children[child])
     
     return envModTree
 
 function getInterfaces(module: StarModule): EnvModule
     envMod = []
     for decl in module
-        if module[decl].interface.kind == "PARAMETRIC"
-            declItem = module[decl].interface.body
-        
-        else
-            declItem = module[decl].interface
-
-        if module[decl].kind == "FUNCTION"
-            if declItem.kind != "ENTAILS"
-                throw Error(`Interface error, expected: 'ENTAILS'`)
-        
-            intf = declItem.input
-        
-        else if module[decl].kind == "PARAMS"
-            intf = declItem
-        
-        if intf.kind != "PRODUCT"
-            throw Error(`Interface error, expected: 'PRODUCT'`)
-        
-        if module[decl].params.length != intf.items.length
-            throw Error(`Params count not matching, expected count: ${intf.items.length}`)
-        
         envMod[decl] = module[decl].interface
     
     return envMod
@@ -185,14 +163,28 @@ function getInterfaces(module: StarModule): EnvModule
 function validateResults(moduleTree: StarModuleTree, envTree: EnvModuleTree): void
     module = moduleTree.item
     for decl in module
-        if module[decl].kind == "FUNCTION"
-            inferred = computeStructuralInterface(module[decl].params, envTree)
-            checkSatisfies(inferred, module[decl].interface.output, [])
+        validateTopInterfaceWellFormed(module[decl])
+        processTerms(module[decl], envTree)
 
     for i = 0..moduleTree.children.length
         validateResults(moduleTree.children[i], envTree.children[i])
 
-function computeStructuralInterface(term: StarTerm, envTree: EnvModuleTree): Interface
+function validateTopInterfaceWellFormed(declItem: StarDecl): void
+    interface = declItem.interface
+    if declItem.kind == "FUNCTION"
+        if interface.kind == "PARAMETRIC"
+            vars = interface.vars
+            interface = interface.body
+        
+        if interface.kind != "ENTAILS"
+            throw Error(`Interface error, expected: 'ENTAILS'`)
+        
+    if interface.kind != "PRODUCT"
+        throw Error(`Interface error, expected: 'PRODUCT'`)
+    
+    return
+
+function processTerms(term: StarTerm, envTree: EnvModuleTree): Interface
     switch term:
     if term is Literal l
         return {kind: "LITERAL", value: "String"}
@@ -203,15 +195,12 @@ function computeStructuralInterface(term: StarTerm, envTree: EnvModuleTree): Int
     if term is Identifier i
         return {kind: "IDENTIFIER", module: i.module, label: i.label}
     
-    if term is Variable v
-        return {kind: "VARIABLE", label: v}
-    
     if term is StarGet(base, projection):
-        baseIntf = computeStructuralInterface(base, envTree)
+        baseIntf = processTerms(base, envTree)
         return inferProjection(baseIntf, projection)
     
     if term is StarList(head, args):
-        headIntf = computeStructuralInterface(head, envTree)
+        headIntf = processTerms(head, envTree)
         if headIntf.kind != "IDENTIFIER"
             throw Error(`Head does not resolve to identifier`)
         
@@ -222,22 +211,43 @@ function computeStructuralInterface(term: StarTerm, envTree: EnvModuleTree): Int
         if not headIntf.label in env
             throw Error(`Unknown identifier`)
 
-        tmpIntf = env[headIntf.label]
-        argIntfs = args.map(arg => computeStructuralInterface(arg, envTree))
+        interface = env[headIntf.label]
+        argIntfs = args.map(arg => processTerms(arg, envTree))
         vars = []
-        if tmpIntf.kind == "PARAMETRIC"
-            tmpIntf.vars.map(var => {vars[var] = null})
-            tmpIntf = tmpIntf.body
-            
-        if tmpIntf.kind == "PRODUCT"
-            return checkParams(tmpIntf, argIntfs, vars)
+        if interface.kind == "PARAMETRIC"
+            vars = interface.vars
+            interface = interface.body
         
-        if tmpIntf.kind == "ENTAILS"
-            params = tmpIntf.input.items.map(item => item.label)
-            return applyEntails(tmpIntf, params, argIntfs, vars)
-    
+        if interface.kind == "PRODUCT"
+            if interface.items.length != args.length
+                throw Error(`Arity mismatch`)
+            
+            env = checkArgs(argIntfs, input, vars): Interface[]
+
+            return [kind: "PRODUCT", items: interface.items]
+        
+        if interface.kind == "ENTAILS"
+            if interface.input.items.length != args.length
+                throw Error(`Arity mismatch`)
+            
+            params = interface.input.items.map(item => item.label)
+            input = interface.input
+            output = interface.output
+            env = checkArgs(argIntfs, input, vars): Interface[]
+            inferred = substituteParams(output, params, argIntfs, env)
+            checkSatisfies(inferred, output, [], [], [])
+            
+            return inferred
+
     throw Error(`Interface mismatch`)
+
+function checkArgs(argIntfs, input, vars): Interface[]
+    env = []
+    for i in 0..argIntfs.length
+        env = checkSatisfies(argIntfs[i], input.items[i].value, env, vars, [])
     
+    return env
+
 function getEnv(tree: EnvModuleTree, expr: Identifier): [Boolean, EnvModule]
     module = tree
     for mod in expr.module
@@ -248,76 +258,65 @@ function getEnv(tree: EnvModuleTree, expr: Identifier): [Boolean, EnvModule]
     
     return [true, module.item]
 
-function checkParams(paramsIntf: Interface, args: Interface[], vars: Primary[]): Interface
-    if paramsIntf.items.length != args.length
-        throw Error(`Arity mismatch`)
-    
-    for i in 0..args.length
-        checkSatisfies(args[i], paramsIntf.items[i].value, vars)
-
-    return paramsIntf
-        
-function applyEntails(funcIntf: Interface, params: String[], args: Interface[], vars: Primary[]): Interface
-    input = funcIntf.input
-    output = funcIntf.output
-    if input.items.length != args.length
-        throw Error(`Arity mismatch`)
-    
-    for i in 0..args.length
-        checkSatisfies(args[i], input.items[i].value, vars)
-    
-    return substituteParams(output, params, args, vars)
-
-function checkSatisfies(actual: Interface, required: Interface, vars: Primary[]): void
+function checkSatisfies(actual: Interface, required: Interface, env: Interface[], vars: String[], occurVars: String[]): Interface[]
     if required.kind == "LITERAL"
         if actual.kind != "LITERAL"
             throw Error(`Literal mismatch`)
 
         if actual.value == required.value
-            return
+            return env
         
         throw Error(`Atom mismatch`)
 
     if required.kind == "PARAMETER"
-        if actual.kind != "PARAMETER"
-            throw Error(`Parameter mismatch`)
-
         if actual.label == required.label
-            return
+            return env
         
-        throw Error(`Atom mismatch`)
+        throw Error(`Parameter mismatch`)
 
     if required.kind == "IDENTIFIER"
         if actual.kind != "IDENTIFIER"
             throw Error(`Identifier mismatch`)
 
         if actual.module == required.module and actual.label == required.label
-            return
+            return env
         
-        throw Error(`Atom mismatch`)
+        throw Error(`Identifier mismatch`)
 
     if required.kind == "VARIABLE"
-        if vars[required.label] == null
-            vars[required.label] = actual
-            return
-        
+        if vars[required.label] not exists
+            throw Error(`Undeclared variable`)
+
+        if required.label in occurVars
+            throw Error(`Cyclic parametric variable detected: ${required.label}`)
+                
+        if env[required.label] is undefined
+            env = clone(env)
+            env[required.label] = actual
+            return env
+
         else
-            checkSatisfies(actual, vars[required.label], vars)
-            return
+            return checkSatisfies(actual, env[required.label], env, vars, [...occurVars, required.label])
 
     if required.kind == "UNION"
         if actual.kind == "UNION"
-            // exact mode
             throw Error(`Cast required`)
         
         else
+            success = []
             for alt in required.items
                 try {
-                    checkSatisfies(actual, alt, clone(vars))
-                    return
+                    env2 = checkSatisfies(actual, alt, env, vars, occurVars)
+                    success.push(env2)
                 }
             
-            throw Error(`No UNION alternative satisfied`)
+            if success.length == 0
+                throw Error("No UNION alternative satisfied")
+
+            if success.length > 1
+                throw Error("Ambiguous UNION match")
+
+            return success[0]
 
     if required.kind == "PRODUCT"
         if actual.kind != "PRODUCT"
@@ -326,12 +325,17 @@ function checkSatisfies(actual: Interface, required: Interface, vars: Primary[])
         if actual.items.length != required.items.length
             throw Error(`'PRODUCT' arity mismatch`)
 
+        env2 = env
         for i in 0..actual.items.length
-            checkSatisfies(actual.items[i].value, required.items[i].value, vars)
+            env2 = checkSatisfies(actual.items[i].value, required.items[i].value, env2, vars, occurVars)
 
-    if required.kind == "ENTAILS"
-        throw Error(`Cannot directly satisfy 'ENTAILS' without application`)
+        return env2
 
+    if actual.kind == "ENTAILS" or required.kind == "ENTAILS"
+        throw Error(`'ENTAILS' not allowed here`)
+
+    return env
+    
 function inferProjection(base: Interface, path: string[]): Interface
     if base.kind == "UNION"
         throw Error(`Cast required`)
@@ -349,14 +353,14 @@ function inferProjection(base: Interface, path: string[]): Interface
 
     return current
 
-function substituteParams(output: Interface, params: String[], args: Interface[], vars: Primary[]): Interface
+function substituteParams(output: Interface, params: String[], args: Interface[], envVars: Interface[]): Interface
     env = []
     for i in 0..params.length
         env[params[i]] = args[i]
 
-    return substitute(output, env, vars)
+    return substitute(output, env, envVars)
 
-function substitute(expr: Interface, env: SubstEnv, vars: Primary[]): Interface
+function substitute(expr: Interface, env: SubstEnv, envVars: Interface[], occurVars: String[]): Interface
     if expr.kind == "LITERAL"
         return expr
         
@@ -371,45 +375,55 @@ function substitute(expr: Interface, env: SubstEnv, vars: Primary[]): Interface
         return expr
     
     if expr.kind == "VARIABLE"
-        if vars[expr.label] == null
-            throw Error(`Unbound parametric variable`)
+        if envVars[expr.label] not exists
+            throw Error(`Unbound parametric variable: ${expr.label}`)
         
-        return substitute(vars[expr.label], env, vars)
+        if occurVars not defined
+            occurVars = []
+        
+        if expr.label in occurVars
+            throw Error(`Cyclic parametric variable detected: ${expr.label}`)
+                
+        return substitute(envVars[expr.label], env, envVars, [...occurVars, expr.label])
 
     if expr.kind == "UNION"
         return {
             kind: "UNION",
-            items: expr.items.map(item => substitute(item, env, clone(vars)))
+            items: expr.items.map(item => substitute(item, env, envVars, occurVars))
         }
 
     if expr.kind == "PRODUCT"
         return {
             kind: "PRODUCT",
-            items: expr.items.map(item => {label: item.label, value: substitute(item.value, env, vars)})
+            items: expr.items.map(item => {label: item.label, value: substitute(item.value, env, envVars, occurVars)})
         }
     
-    // ENTAILS never shows up
+    if expr.kind == "ENTAILS"
+        throw Error(`'ENTAILS' not allowed here`)
 
 // pass 3
 
-function eraseAnnotations(moduleTree: StarModuleTree): PlusModuleTree
+function eraseAnnotationsTree(moduleTree: StarModuleTree): PlusModuleTree
     modTree = {
-        item: moduleTree.item.map(decl => eraseIntf(decl)),
+        item: getAnnotations(moduleTree.item),
         children: []
     }
     
     for child in moduleTree.children
-        modTree.children[child.key] = eraseAnnotations(child.value)
+        modTree.children[child] = eraseAnnotationsTree(moduleTree.children[child])
     
     return modTree
+
+function getAnnotations(module: StarModule): PlusModule
+    envMod = []
+    for decl in module
+        envMod[decl] = eraseIntf(module[decl])
+    
+    return envMod
 
 function eraseIntf(decl: StarDecl): PlusDecl
     if decl.kind == "PARAMS"
         return {kind: "PARAMS", params: decl.params}
 
-    return {
-        kind: "FUNCTION"
-        params: decl.params,
-        result: decl.result
-    }
+    return {kind: "FUNCTION", params: decl.params, result: decl.result}
 
