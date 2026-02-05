@@ -147,14 +147,14 @@ function compileStarToPlus(moduleTree: StarModuleTree): PlusModuleTree
 function getInterfaceTree(moduleTree: StarModuleTree): EnvModuleTree
     envModTree = {item: getInterfaces(moduleTree.item), children: []}
     for child in moduleTree.children
-        envModTree.children[child] = getInterfaceTree(moduleTree.children[child])
+        envModTree.children[child.key] = getInterfaceTree(child.value)
     
     return envModTree
 
 function getInterfaces(module: StarModule): EnvModule
     envMod = []
     for decl in module
-        envMod[decl] = module[decl].interface
+        envMod[decl.key] = decl.value.interface
     
     return envMod
 
@@ -163,8 +163,8 @@ function getInterfaces(module: StarModule): EnvModule
 function validateResults(moduleTree: StarModuleTree, envTree: EnvModuleTree): void
     module = moduleTree.item
     for decl in module
-        validateTopInterfaceWellFormed(module[decl])
-        processTerms(module[decl], envTree)
+        validateTopInterfaceWellFormed(decl.value)
+        processTerms(decl.value, envTree)
 
     for i = 0..moduleTree.children.length
         validateResults(moduleTree.children[i], envTree.children[i])
@@ -222,9 +222,9 @@ function processTerms(term: StarTerm, envTree: EnvModuleTree): Interface
             if interface.items.length != args.length
                 throw Error(`Arity mismatch`)
             
-            env = checkArgs(argIntfs, input, vars): Interface[]
+            env = checkArgs(argIntfs, interface, vars): Interface[]
 
-            return [kind: "PRODUCT", items: interface.items]
+            return {kind: "PRODUCT", items: interface.items}
         
         if interface.kind == "ENTAILS"
             if interface.input.items.length != args.length
@@ -241,7 +241,7 @@ function processTerms(term: StarTerm, envTree: EnvModuleTree): Interface
 
     throw Error(`Interface mismatch`)
 
-function checkArgs(argIntfs, input, vars): Interface[]
+function checkArgs(argIntfs: Interface[], input: Product, vars: String[]): Interface[]
     env = []
     for i in 0..argIntfs.length
         env = checkSatisfies(argIntfs[i], input.items[i].value, env, vars, [])
@@ -407,14 +407,14 @@ function eraseAnnotationsTree(moduleTree: StarModuleTree): PlusModuleTree
     }
     
     for child in moduleTree.children
-        modTree.children[child] = eraseAnnotationsTree(moduleTree.children[child])
+        modTree.children[child.key] = eraseAnnotationsTree(child.value)
     
     return modTree
 
 function getAnnotations(module: StarModule): PlusModule
     envMod = []
     for decl in module
-        envMod[decl] = eraseIntf(module[decl])
+        envMod[decl.key] = eraseIntf(decl.value)
     
     return envMod
 
