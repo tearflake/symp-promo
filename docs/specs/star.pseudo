@@ -163,13 +163,13 @@ function getInterfaces(module: StarModule): EnvModule
 function validateResults(moduleTree: StarModuleTree, envTree: EnvModuleTree): void
     module = moduleTree.item
     for decl in module
-        validateTopInterfaceWellFormed(decl.value)
+        validateTopInterfaceShape(decl.value)
         processTerms(decl.value, envTree)
 
     for i = 0..moduleTree.children.length
         validateResults(moduleTree.children[i], envTree.children[i])
 
-function validateTopInterfaceWellFormed(declItem: StarDecl): void
+function validateTopInterfaceShape(declItem: StarDecl): void
     interface = declItem.interface
     if declItem.kind == "FUNCTION"
         if interface.kind == "PARAMETRIC"
