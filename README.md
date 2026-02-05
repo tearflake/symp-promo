@@ -83,9 +83,9 @@ It is optimized for clarity, exactness, and inspectability.
 
 #### Docs
 
-* Core: what runs [[specifications](docs/core)] [[pseudocode](docs/specs/core.pseudo)]
-* Plus: how humans write [[specifications](docs/plus)] [[pseudocode](docs/specs/plus.pseudo)]
-* Star: what is allowed to exist [[specifications](docs/star)] [[pseudocode](docs/specs/star.pseudo)]
+* Core: what runs [[specifications](docs/core)] [[pseudocode](https://raw.githubusercontent.com/tearflake/symp-promo/refs/heads/main/docs/specs/core.pseudo)]
+* Plus: how humans write [[specifications](docs/plus)] [[pseudocode](https://raw.githubusercontent.com/tearflake/symp-promo/refs/heads/main/docs/specs/plus.pseudo)]
+* Star: what is allowed to exist [[specifications](docs/star)] [[pseudocode](https://raw.githubusercontent.com/tearflake/symp-promo/refs/heads/main/docs/specs/star.pseudo)]
 
 ---
 
