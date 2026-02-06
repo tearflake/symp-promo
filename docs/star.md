@@ -19,6 +19,7 @@ layout: docs
 - [2. Theoretical Background](#2-theoretical-background)
     - [2.1. Formal Syntax](#21-formal-syntax)
     - [2.2. Informal Semantics](#22-informal-semantics)  
+    - [2.3. Discussion](#23-discussion)  
 - [3. Examples](#3-examples)  
 - [4. Conclusion](#4-conclusion)  
 
@@ -91,6 +92,123 @@ Atomic expressions may be enclosed between a pair of `'` characters if we want t
 In addition to the exposed grammar, user comments have no meaning to the system, but may be descriptive to readers, and may be placed wherever a whitespace is expected. Single line comments begin with `//` and span to the end of line. Multiline comments begin with `/*` and end with `*/`.
 
 ### 2.2. Informal Semantics
+
+The **Symp Star** framework extends *Symp Plus* with explicit interface annotations and static validation. Star programs are not executed directly; instead, they are **checked, erased, and projected** into plain Symp Plus programs. The Star layer exists purely to enforce correctness and does not affect runtime behavior.
+
+Semantically, a Star program is processed in **three distinct passes**.
+
+#### Interface Extraction
+
+In the first pass, the compiler traverses the Star module tree and extracts **interfaces** from every declaration.
+
+Each module produces an *interface environment* mapping declaration names to their declared interfaces. These environments mirror the module hierarchy of the program and are used for name resolution and validation in later passes.
+
+No expressions are analyzed in this pass. The goal is solely to make all interfaces globally available before any semantic checking occurs.
+
+#### Interface Validation and Term Checking
+
+The second pass enforces the semantic correctness of the Star program. It validates both the *shape* of declared interfaces and the *admissibility* of all terms.
+
+##### Top-level interface shape
+
+Every declaration must have a top-level interface of the correct form:
+
+* Parameter declarations must describe a **product**.
+* Function declarations must describe an **entailment** (`input ⟹ output`), optionally wrapped in a parametric interface.
+
+Any deviation is a static error.
+
+##### Term interpretation
+
+Every Star term is interpreted as producing an **interface value**.
+
+* **Literals** evaluate to a literal interface.
+* **Parameters** evaluate to a parameter interface.
+* **Identifiers** evaluate to an identifier interface referring to a named declaration.
+* **GET expressions** (`base.projection`) project a labeled field from a product interface.
+* **Applications** evaluate by applying a function or product interface to argument interfaces.
+
+Term checking is recursive and compositional: the interface of a term is determined entirely by the interfaces of its subterms.
+
+##### Application semantics
+
+When a list expression is encountered, the head must resolve to a known identifier. Its interface determines how the application is interpreted.
+
+###### Product application
+
+If the head resolves to a product interface:
+
+* The number of arguments must match the number of product fields.
+* Each argument interface must satisfy the corresponding field interface.
+* The result of the application is the same product interface.
+
+This models structural construction or validation of a product value.
+
+###### Entailment application
+
+If the head resolves to an entailment interface:
+
+* The number of arguments must match the input arity.
+* Each argument must satisfy the corresponding input interface.
+* Parametric variables are instantiated during this process.
+* The output interface is computed by substituting parameters and resolved variables into the entailment’s output.
+
+The result is a fully inferred interface representing the application’s value.
+
+##### Parametric interfaces and variable resolution
+
+Parametric interfaces introduce universally quantified variables. These variables are instantiated during application by matching actual arguments against required interfaces.
+
+Variable resolution follows unification-like rules:
+
+* A variable may be bound once to a concrete interface.
+* Subsequent uses must be consistent with the existing binding.
+* Cyclic bindings are rejected.
+
+All substitutions are explicit and statically enforced.
+
+##### Union interfaces
+
+Union interfaces represent alternatives.
+
+* A value must satisfy **exactly one** union alternative.
+* If no alternative matches, the application is invalid.
+* If more than one alternative matches, the result is ambiguous and rejected.
+* Union values cannot be implicitly projected; explicit casting is required.
+
+This ensures deterministic interface inference.
+
+##### Projections
+
+A projection extracts a labeled field from a product interface.
+
+* Projections are only allowed on product interfaces.
+* Attempting to project from a union or non-product interface is an error.
+* Nested projections are evaluated step by step.
+
+#### Erasure and Projection to Symp Plus
+
+The final pass erases all Star-specific constructs:
+
+* Interfaces are removed.
+* GET expressions are projected into equivalent Plus expressions.
+* Only parameters, identifiers, and pure expressions remain.
+
+The resulting program is a valid **Symp Plus** module tree with identical runtime behavior to the original Star program.
+
+The Star layer thus functions as a **static correctness discipline** with no operational effect.
+
+#### Summary
+
+Conceptually, Symp Star adds a **logical interface layer** on top of Symp Plus:
+
+* Interfaces describe the admissible shapes of values and applications.
+* Programs are checked via entailment, unification, and projection.
+* All interface information is erased before execution.
+
+A Star program is valid if and only if its interfaces can be consistently satisfied across all terms.
+
+### 2.3. Discussion
 
 The informal semantics of Symp Star describe how syntactically valid expressions are *understood* by the validator. Unlike traditional semantics, these rules do not assign meanings or values to expressions. Instead, they describe how interface obligations are propagated, combined, and checked.
 
