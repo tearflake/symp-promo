@@ -362,19 +362,19 @@ In Symp Star, responsibility means explicit commitment. Ambiguity is not resolve
 
 #### Part IX — Known Limitations
 
-**Explicit assertions can still be wrong.**
+**Explicit assertions can still be wrong**
 
 Symp Star allows authors to make explicit claims about what a step produces or requires. If such a claim is incorrect, Symp Star has no way to detect it and will proceed as if it were true. This is intentional: Symp Star refuses *implicit* assumptions, not explicit ones. When a declaration is made, responsibility for its accuracy remains with the author.
 
-**Runtime behavior is out of scope.**
+**Runtime behavior is out of scope**
 
 Symp Star does not execute workflows or observe runtime values. It does not reason about IO, timing, concurrency, network behavior, or side effects. Any failure that depends on runtime conditions may still occur, even if the workflow is structurally admissible. Symp Star only evaluates whether the declared structure of the workflow holds.
 
-**Admissibility is not correctness.**
+**Admissibility is not correctness**
 
 A workflow that passes Symp Star may still be incorrect, inefficient, unsafe, unethical, or simply useless. Symp Star does not evaluate whether an outcome is desirable or whether a plan achieves its goal. It only checks whether each step follows from the previous ones according to what has been explicitly declared.
 
-**No inference or repair is performed.**
+**No inference or repair is performed**
 
 When Symp Star encounters a structural mismatch, it does not attempt to infer missing assumptions, guess intent, or suggest fixes. It reports the point at which admissibility breaks and stops. This refusal is deliberate: repair and reinterpretation are left to humans or external systems.
 
