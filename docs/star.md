@@ -342,7 +342,7 @@ Symp Star is not a symbolic programming system itself, but a complement to such 
 
 Symp Star enforces discipline but does not impose meaning. It provides structural guarantees without asserting intent, correctness of results, or semantic interpretation. Authority remains with the program author.
 
-#### Part VIII — Limits and Philosophy
+#### Part VIII — Philosophy
 
 **Why We Stay Decidable**
 
@@ -360,7 +360,7 @@ Symp Star explicitly refuses to reason about values, truth, semantics, or intent
 
 In Symp Star, responsibility means explicit commitment. Ambiguity is not resolved implicitly by the system but must be resolved by the author. Symp Star enforces this discipline by requiring responsibility to be stated structurally and explicitly.
 
-#### Part IX - Known Limitations
+#### Part IX — Known Limitations
 
 **Explicit assertions can still be wrong.**
 
