@@ -73,11 +73,11 @@ In computer science, the syntax of a computer language is the set of rules that 
 
 <term> := (PARAMS <ATOMIC>*)
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
-```
 
-In addition to the grammar, within `<ANY>` S-expressions, it is possible to write projections `<proj>` as:
+///////////////////////////////////////////////////////////
+// within <ANY> S-expression, write projection <proj> as //
+///////////////////////////////////////////////////////////
 
-```
 <proj> := (PROJ (CAST <param> <intersect>) <ATOMIC>)
 
 <param> := <ATOMIC>
