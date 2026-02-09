@@ -61,6 +61,7 @@ In computer science, the syntax of a computer language is the set of rules that 
 //                                                     //
 //  Notes:                                             //
 //  - `*` marks zero or more occurrences               //
+//  - `+` marks one or more occurrences                //
 //                                                     //
 /////////////////////////////////////////////////////////
 
@@ -83,7 +84,7 @@ In computer science, the syntax of a computer language is the set of rules that 
 <param> := <ATOMIC>
          | <proj>
 
-<intersect> := (INTERSECT <ATOMIC>*)
+<intersect> := (INTERSECT <ATOMIC>+)
              | <ATOMIC>
 ```
 

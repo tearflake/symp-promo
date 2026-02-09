@@ -4,6 +4,7 @@
 //                                                     //
 //  Notes:                                             //
 //  - `*` marks zero or more occurrences               //
+//  - `+` marks one or more occurrences                //
 //                                                     //
 /////////////////////////////////////////////////////////
 
@@ -26,6 +27,6 @@
 <param> := <ATOMIC>
          | <proj>
 
-<intersect> := (INTERSECT <ATOMIC>*)
+<intersect> := (INTERSECT <ATOMIC>+)
              | <ATOMIC>
 
