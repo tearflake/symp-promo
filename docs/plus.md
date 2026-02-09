@@ -75,6 +75,18 @@ In computer science, the syntax of a computer language is the set of rules that 
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
 ```
 
+In addition to the grammar, within `<ANY>` S-expressions, it is possible to write projections `<proj>` as:
+
+```
+<proj> := (PROJ (CAST <param> <intersect>) <ATOMIC>)
+
+<param> := <ATOMIC>
+         | <proj>
+
+<intersect> := (INTERSECT <ATOMIC>*)
+             | <ATOMIC>
+```
+
 The above grammar defines the syntax of Symp Plus. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols are considered parts of the Symp Plus grammar.
 
 Atomic expressions may be enclosed between a pair of `'` characters if we want to include special characters used in the grammar. Strings are enclosed between a pair of `"` characters. Multiline atoms and strings are enclosed between an odd number of `'` or `"` characters.
@@ -185,8 +197,8 @@ Evaluation proceeds by repeatedly reducing terms until no further reduction is p
 
 Key principles:
 
-* **Atoms are irreducible**.
-* **Lists are reducible only through their head**.
+* Atoms are irreducible.
+* Lists are reducible only through their head.
 * Reduction always attempts to reduce the head position first.
 
 If the head reduces to a known function identifier, the function is applied. If the head reduces to a known parameters identifier, the parameters are considered as irreducible structure. Otherwise, an error may be triggered during runtime execution.
@@ -264,10 +276,11 @@ The following examples illustrate what Symp Plus adds, and how it relates to Sym
 #### Symp Plus definition
 
 ```
-(ID Echo
-  (FUNCTION
-    (PARAMS x)
-    (RESULT x)))
+(SYMP
+  (ID Echo
+    (FUNCTION
+      (PARAMS x)
+      (RESULT x))))
 ```
 
 #### Symp Plus usage
@@ -279,10 +292,11 @@ The following examples illustrate what Symp Plus adds, and how it relates to Sym
 #### Compilation result (conceptual)
 
 ```
-(ID Echo
-  (FUNCTION
-    (PARAMS ...)
-    (RESULT (FAH Args))))
+(SYMP
+  (ID Echo
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT (FAH Args)))))
 ```
 
 #### Final reduction result
@@ -299,10 +313,11 @@ In Symp Core, `FAH Args` would need to be written explicitly. Symp Plus allows a
 #### Symp Plus definition
 
 ```
-(ID Pair
-  (FUNCTION
-    (PARAMS a b)
-    (RESULT (L a b))))
+(SYMP
+  (ID Pair
+    (FUNCTION
+      (PARAMS a b)
+      (RESULT (L a b)))))
 ```
 
 #### Usage
@@ -314,10 +329,11 @@ In Symp Core, `FAH Args` would need to be written explicitly. Symp Plus allows a
 #### Compilation result (conceptual)
 
 ```
-(ID Pair
-  (Params ...)
-  (RESULT
-    (L (FAH Args) (FAH (RAH Args)))))
+(SYMP
+  (ID Pair
+    (Params ...)
+    (RESULT
+      (L (FAH Args) (FAH (RAH Args))))))
 ```
 
 #### Final reduction result
@@ -334,10 +350,14 @@ Parameter order determines structure. Reordering parameters changes the generate
 #### Symp Plus definition
 
 ```
-(ID Dup
-  (FUNCTION
-    (PARAMS x)
-    (RESULT (L x x))))
+(SYMP
+  (ID L
+    (PARAMS p q))
+  
+  (ID Dup
+    (FUNCTION
+      (PARAMS x)
+      (RESULT (L x x)))))
 ```
 
 #### Usage
@@ -349,11 +369,15 @@ Parameter order determines structure. Reordering parameters changes the generate
 #### Compilation result (conceptual)
 
 ```
-(ID Dup
-  (FUNCTION
-    (PARAMS ...)
-    (RESULT
-      (L (FAH Args) (FAH Args)))))
+(SYMP
+  (ID L
+    (PARAMS ...))
+
+  (ID Dup
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT
+        (L (FAH Args) (FAH Args))))))
 ```
 
 #### Final reduction result
@@ -370,14 +394,15 @@ Each occurrence of `x` expands independently. There is no sharing or binding.
 #### Symp Plus definition
 
 ```
-(ID Projected
-  (PARAMS x y z))
+(SYMP
+  (ID Projected
+    (PARAMS x y z))
 
-(ID GetProjected
-  (FUNCTION
-    (PARAMS p)
-    (RESULT
-      (PROJ (CAST p Projected) y)
+  (ID GetProjected
+    (FUNCTION
+      (PARAMS p)
+      (RESULT
+        (PROJ (CAST p Projected) y)))))
 ```
 
 #### Usage
@@ -389,14 +414,15 @@ Each occurrence of `x` expands independently. There is no sharing or binding.
 #### Compilation result (conceptual)
 
 ```
-(ID Projected
-  (PARAMS ...))
+(SYMP
+  (ID Projected
+    (PARAMS ...))
 
-(ID GetProjected
-  (FUNCTION
-    (PARAMS ...)
-    (RESULT
-      (FAH (RAH (FAH Args))))))
+  (ID GetProjected
+    (FUNCTION
+      (PARAMS ...)
+      (RESULT
+        (FAH (RAH (FAH Args)))))))
 ```
 
 #### Final reduction result
@@ -413,10 +439,11 @@ We can access projections, but only after required casting is applied. Choice of
 #### Symp Plus definition
 
 ```
-(ID Bad
-  (FUNCTION
-    (PARAMS x)
-    (RESULT y)))
+(SYMP
+  (ID Bad
+    (FUNCTION
+      (PARAMS x)
+      (RESULT y))))
 ```
 
 During compilation, `y` cannot be resolved to a parameter.

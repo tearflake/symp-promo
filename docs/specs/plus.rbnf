@@ -17,3 +17,15 @@
 <term> := (PARAMS <ATOMIC>*)
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
 
+///////////////////////////////////
+// within <ANY>, write <proj> as //
+///////////////////////////////////
+
+<proj> := (PROJ (CAST <param> <intersect>) <ATOMIC>)
+
+<param> := <ATOMIC>
+         | <proj>
+
+<intersect> := (INTERSECT <ATOMIC>*)
+             | <ATOMIC>
+
