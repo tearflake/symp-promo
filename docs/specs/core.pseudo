@@ -6,15 +6,15 @@
 
 CoreModuleTree: {
     item: PlusModule,
-    children: Map<String, CoreModuleTree>
+    children: CoreModuleTree[]
 }
 
-CoreModule: Map<String, CoreDecl>
+CoreModule: CoreDecl[]
 
 CoreDecl: {
     kind: "PARAMS"
 } | {
-    kind: "FUNCTION"
+    kind: "FUNCTION",
     result: CoreTerm
 }
 
@@ -25,134 +25,140 @@ CoreTerm: CoreAtom | CoreList
 CoreAtom: Identifier | Literal
 
 CoreList: {
-    head: Identifier,
+    kind: "LIST",
+    head: CoreTerm,
     tail: CoreTerm[]
 }
 
 Identifier: {
+    kind: "IDENTIFIER",
     module: String[],
-    idName: String,
+    label: String,
 }
 
-Literal: String
+Literal: {
+    kind: "LITERAL",
+    value: String
+}
 
 // interpreter
 
 function reduce(expr: CoreTerm, moduleTree: CoreModuleTree): CoreTerm
     while true
-        if expr is Literal
+        if expr.kind == "LITERAL"
             return expr
         
-        if expr is Identifier
+        if expr.kind == "IDENTIFIER"
             [ok, module] = getModule(moduleTree, expr)
-            if (not ok) or (not expr.idName in module)
-                return {head: {module: [], idName: "ERROR"}, tail: [`Unknown alias or identifier`]}
+            if (not ok) or (not expr.label in module)
+                return {head: {module: [], label: "ERROR"}, tail: [`Unknown alias or identifier ${expr.label}`]}
             
             return expr // Identifiers are inert unless in head position;
         
         head = reduce(expr.head, moduleTree)
-        if head is Identifier
-            if head.idName == "Args" or head.idName == "ERROR" // arg list and error are valid heads
+        if head.kind == "IDENTIFIER"
+            if head.label == "Args" or head.label == "ERROR" // arg list and error are valid heads
                 return expr
             
-            if head.idName == "IsEq" // test for atom equality
+            if head.label == "IsEq" // test for atom equality
                 if expr.tail.length != 2
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'Eq' requires two parameters`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'Eq' requires two parameters`]}
                                     
                 cond = (reduce(expr.tail[0], moduleTree) == reduce(expr.tail[1], moduleTree))
-                expr = {module: [], idName: (cond ? "True" : "False"}
+                expr = {module: [], label: (cond ? "True" : "False"}
                 continue
             
-            if head.idName == "IsAtom" // test if argument is atom
+            if head.label == "IsAtom" // test if argument is atom
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsAtom' requires one parameter`]}
-                                    
-                cond = (reduce(expr.tail[0]) is CoreAtom)
-                expr = {module: [], idName: (cond ? "True" : "False"}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'IsAtom' requires one parameter`]}
+                
+                redExpr = reduce(expr.tail[0])
+                cond = (redExpr.kind != "LIST")
+                expr = {module: [], label: (cond ? "True" : "False"}
                 continue
             
-            if head.idName == "IsEmpty" // test if list is empty
+            if head.label == "IsEmpty" // test if list is empty
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires one parameter`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'IsEmpty' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
-                if not redExpr is CoreList
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'IsEmpty' requires list as parameter`]}
+                if redExpr.kind != "LIST"
+                    return {head: {module: [], label: "ERROR"}, tail: [`'IsEmpty' requires list as parameter`]}
 
                 cond = (redExpr.tail.length == 0)
-                expr = {module: [], idName: (cond ? "True" : "False"}
+                expr = {module: [], label: (cond ? "True" : "False"}
                 continue
             
-            if head.idName == "FAH" // first element after head
+            if head.label == "FAH" // first element after head
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' requires one parameter`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'FAH' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
-                if not redExpr is CoreList
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' requires list as parameter`]}
+                if redExpr.kind != "LIST"
+                    return {head: {module: [], label: "ERROR"}, tail: [`'FAH' requires list as parameter`]}
 
                 if (redExpr.tail.length == 0)
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'FAH' on empty list`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'FAH' on empty list`]}
                 
                 expr = redExpr.tail[0]
                 continue
             
-            if head.idName == "RAH" // rest of elements after head
+            if head.label == "RAH" // rest of elements after head
                 if expr.tail.length != 1
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' requires one parameter`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'RAH' requires one parameter`]}
                 
                 redExpr = reduce(expr.tail[0], moduleTree)
-                if not redExpr is CoreList
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' requires list as parameter`]}
+                if redExpr.kind != "LIST"
+                    return {head: {module: [], label: "ERROR"}, tail: [`'RAH' requires list as parameter`]}
                 
                 if (redExpr.tail.length == 0)
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'RAH' on empty list`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'RAH' on empty list`]}
                 
                 expr = {head: redExpr.head, tail: redExpr.tail[1..]}
                 continue
             
-            if head.idName == "IAH" // insert element after head
+            if head.label == "IAH" // insert element after head
                 if expr.tail.length != 2
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'IAH' requires two parameters`]}
+                    return {head: {module: [], label: "ERROR"}, tail: [`'IAH' requires two parameters`]}
                 
                 redExpr = reduce(expr.tail[1], moduleTree)
-                if not redExpr is CoreList
-                    return {head: {module: [], idName: "ERROR"}, tail: [`'IAH' requires list as second parameter`]}
+                if redExpr.kind != "LIST"
+                    return {head: {module: [], label: "ERROR"}, tail: [`'IAH' requires list as second parameter`]}
 
                 expr = {head: redExpr.head, tail: [reduce(expr.tail[0], moduleTree), ...redExpr.tail]}
                 continue
                 
             [ok, module] = getModule(moduleTree, head)
-            if ok and (head.idName in module)
-                if module[head.idName].kind == "FUNCTION"
-                    expr = substitute(module[head.idName].result, {head: head, tail: expr.tail}, moduleTree)
+            if ok and (head.label in module)
+                if module[head.label].kind == "FUNCTION"
+                    expr = substitute(module[head.label].result, {head: head, tail: expr.tail}, moduleTree)
                     continue
                 
                 return {head: head, tail: expr.tail.map((e) => reduce(e, moduleTree))}
         
-            return {head: {module: [], idName: "ERROR"}, tail: [`Unknown alias or identifier`]}
+            return {head: {module: [], label: "ERROR"}, tail: [`Unknown alias or identifier`]}
             
-        return {head: {module: [], idName: "ERROR"}, tail: [`Head must reduce to identifier`]}
+        return {head: {module: [], label: "ERROR"}, tail: [`Head must reduce to identifier`]}
 
 function getModule(moduleTree: CoreModuleTree, expr: Identifier): [Boolean, CoreModule]
     module = moduleTree
     for mod in expr.module
-        if not mod in module.children
+        if module.children[mod.key] not exists
             return [false, null]
         
-        module = module.children[mod]
+        module = module.children[mod.key]
     
     return [true, module.item]
 
 function substitute(expr: CoreTerm, args: CoreList, moduleTree: CoreModuleTree): CoreTerm
-    if expr is Literal
+    if expr.kind == "LITERAL"
         return expr
 
-    if expr is Identifier
-        if expr.idName == "Args"
-            return {head: {module: [], idName: "Args"}, tail: args.tail}
+    if expr.kind == "IDENTIFIER"
+        if expr.label == "Args"
+            return {head: {module: [], label: "Args"}, tail: args.tail}
     
-        return {module: [...args.head.module, ...expr.module], idName: expr.idName} // all module paths are relative
+        return {module: [...args.head.module, ...expr.module], label: expr.label} // all module paths are relative
     
     return {head: substitute(expr.head, args, moduleTree), tail: expr.tail.map(e => substitute(e, args, moduleTree)}
 

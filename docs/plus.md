@@ -60,7 +60,6 @@ In computer science, the syntax of a computer language is the set of rules that 
 //  Relaxed BNF rules for S-expr based Symp Plus v0.x  //
 //                                                     //
 //  Notes:                                             //
-//  - in this grammar, `...` reads as a terminal       //
 //  - `*` marks zero or more occurrences               //
 //                                                     //
 /////////////////////////////////////////////////////////
@@ -72,7 +71,7 @@ In computer science, the syntax of a computer language is the set of rules that 
 
 <ident> := (ID <ATOMIC> <term>)
 
-<term> := (PARAMS ...)
+<term> := (PARAMS <ATOMIC>*)
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
 ```
 
@@ -84,77 +83,177 @@ In addition to the exposed grammar, user comments have no meaning to the system,
 
 ### 2.2. Informal Semantics
 
-Symp Plus extends **Symp Core** with a *parameterized function syntax* while preserving the same underlying execution model. All runtime semantics remain those of Symp Core; Symp Plus introduces **no new reduction rules**, **no environments**, and **no additional runtime constructs**.
+This section describes the intended meaning of **Symp Plus** programs at a conceptual level. It is informal by design and focuses on *how programs behave* rather than how they are parsed or evaluated internally.
 
-Instead, Symp Plus operates by **compiling parameterized definitions into pure Symp Core terms** prior to evaluation.
+#### Overview
 
-#### Parameters as Compile-Time Structure
+**Symp Plus** is a symbolic, S-expression–based language designed to describe computations through **term rewriting**. Programs consist of **modules** that define parameters and functions. Expressions are evaluated by repeatedly reducing lists whose head position denotes an operation or function.
 
-In Symp Plus, a function may declare a finite list of **named parameters**:
+Symp Plus itself is not executed directly. Instead, it is **compiled into Symp Core**, a minimal interpreter where all semantics are realized through a small set of primitive operations and substitution rules.
 
-```
-(FUNCTION (PARAMS x y z) (RESULT <term>))
-```
+#### Programs and Modules
 
-These parameter names:
+A Symp Plus program consists of a top-level `(SYMP …)` form or a `(FILE …)` form.
 
-* are **purely syntactic**,
-* exist **only during compilation**,
-* and are **not present at runtime**.
+* `(SYMP …)` introduces a module containing:
 
-They do not correspond to variables, bindings, or values. Instead, each parameter name is compiled into a *structural access pattern* over the implicit argument list `Args`.
+  * zero or more **aliases**, and
+  * zero or more **identifiers** (definitions).
 
-At runtime, Symp Plus programs are indistinguishable from Symp Core programs.
+* `(FILE …)` represents an atomic, implementation-defined entry point and has no internal semantics at the language level.
 
-#### Compilation to Symp Core
+Modules may be **nested**, forming a tree. Identifiers are resolved by walking this module tree using explicit module paths.
 
-Before evaluation, a Symp Plus program undergoes a **parameter resolution pass** that rewrites all function bodies:
+#### Aliases
 
-* Each occurrence of a parameter name is replaced with a term that extracts the corresponding positional argument from `Args`
-* Parameter access is expressed exclusively using the built-in structural operators:
-
-  * `FAH` (first after head)
-  * `RAH` (rest after head)
-
-For a function with parameters:
+An alias has the form:
 
 ```
-(PARAMS p₀ p₁ p₂ ...)
+(ALIAS <name> <start>)
 ```
 
-the parameter `pᵢ` is compiled to the structural form:
+An alias introduces a **named submodule**. The aliased `<start>` form is evaluated as if it were defined inline at that location in the module tree.
+
+Aliases do not introduce new runtime behavior; they only affect **name resolution and modular structure**.
+
+#### Identifiers and Declarations
+
+Identifiers have the form:
 
 ```
-(FAH (RAH (RAH ... Args)))
+(ID <name> <term>)
 ```
 
-where `RAH` is applied `i` times.
+Each identifier binds a name to exactly one declaration. Declarations are either:
 
-This transformation is purely syntactic and does not depend on runtime values.
+* a **parameter declaration**, or
+* a **function declaration**.
 
-Without some serious structural typing approach, arity checking is not decidable at compile time due to parametric head positions, therefore it is not performed. Any possible arity mismatch errors are here propagated to the run-time error checking mechanism. However, more complete static analysis may exist externally to Symp Plus.
+Identifiers are inert by default. They only acquire meaning when used:
 
-#### Consequences of Compilation
+* as the **head of a list**, or
+* as part of a parameter projection.
 
-Because parameters are compiled away:
+#### Parameters
 
-* **There is no parameter scope at runtime**
-* **No binding or rebinding occurs**
-* **Parameters are positional, not symbolic**
-* **Repeated parameter use duplicates structure**
-* **Errors from incorrect arity emerge structurally**
+A parameter declaration has the form:
 
-All argument access is explicit, inspectable, and reducible using the existing Symp Core semantics.
+```
+(PARAMS p₁ p₂ … pₙ)
+```
 
-#### Runtime Semantics
+This declares an ordered list of parameter names for the surrounding identifier.
 
-After compilation:
+Parameters represent **positional arguments** to a function. They are not values themselves; instead, they describe how arguments are accessed within the function body.
 
-* All functions are standard Symp Core functions
-* All parameter references have become `FAH` / `RAH` expressions
-* Evaluation proceeds exactly as defined in the Symp Core specification
+Within function bodies, parameters may be:
 
-Symp Plus therefore introduces **no semantic extensions**, only **syntactic convenience**.
+* referenced directly, or
+* accessed structurally via projections.
+
+#### Functions
+
+A function declaration has the form:
+
+```
+(FUNCTION
+  (PARAMS p₁ p₂ … pₙ)
+  (RESULT <term>)
+)
+```
+
+A function defines a symbolic rewrite rule:
+
+* When the function identifier appears in the **head position** of a list,
+* the list’s tail is treated as the function’s arguments,
+* and the function’s result term is instantiated by substituting arguments for parameters.
+
+Functions are **pure**:
+
+* they have no side effects,
+* evaluation depends only on their arguments,
+* and function application is implemented by substitution, not by environment mutation.
+
+#### Terms and Evaluation Model
+
+A **term** represents either:
+
+* an **atom** (identifier, literal, or parameter), or
+* a **list** of the form `(head tail₁ tail₂ …)`.
+
+Evaluation proceeds by repeatedly reducing terms until no further reduction is possible.
+
+Key principles:
+
+* **Atoms are irreducible**.
+* **Lists are reducible only through their head**.
+* Reduction always attempts to reduce the head position first.
+
+If the head reduces to a known function identifier, the function is applied. If the head reduces to a known parameters identifier, the parameters are considered as irreducible structure. Otherwise, an error may be triggered during runtime execution.
+
+#### Parameters as Argument Structures
+
+At runtime, function arguments are represented as a **list structure** bound to a special internal identifier (`Args` in the Core model).
+
+Parameters are resolved structurally:
+
+* the *first parameter* corresponds to the first argument,
+* the second parameter to the second argument,
+* and so on.
+
+Parameter access is therefore defined in terms of list navigation, not by name lookup at runtime.
+
+#### Projection and Structural Access
+
+Symp Plus supports **parameter projection**, allowing access to parts of an argument structure.
+
+A projection conceptually means:
+
+> “From this argument list, select the argument named `<projection>` as declared in the parameter list.”
+
+Projections are resolved **at compile time**, not at runtime. Each projection is translated into a sequence of primitive list operations (e.g. “rest after head”, “first after head”) that extract the desired argument position.
+
+Projections may involve:
+
+* a single parameter source, or
+* an intersection of multiple parameter declarations, in which case only parameters common to all declarations are valid projection targets.
+
+Invalid projections are compile-time errors.
+
+#### Lists as Computation
+
+Lists are the fundamental computation mechanism in Symp Plus.
+
+* A list whose head is a **function identifier** represents a function application.
+* A list whose head is a **primitive operator** represents a built-in operation.
+* Any other list is treated as a symbolic structure and remains unreduced.
+
+There is no distinction between “data” and “code”; both are represented uniformly as terms.
+
+#### Errors
+
+Errors are not exceptions in the host language sense. Instead, they are represented explicitly as symbolic error terms.
+
+Errors may arise from:
+
+* unknown identifiers,
+* invalid projections,
+* incorrect argument counts,
+* or malformed list operations.
+
+Once produced, an error term is inert and propagates unchanged.
+
+#### Compilation Boundary
+
+All high-level features of Symp Plus — including parameters, projections, and intersections — are **eliminated during compilation**.
+
+The compiled Symp Core program:
+
+* contains no parameters,
+* contains no projections,
+* and relies only on primitive list operations and substitution.
+
+Thus, Symp Plus can be understood as a **macro language** over a small symbolic core.
 
 ## 3. Examples: Differences from Symp Core
 
@@ -266,7 +365,50 @@ Parameter order determines structure. Reordering parameters changes the generate
 **Observation:**
 Each occurrence of `x` expands independently. There is no sharing or binding.
 
-### Example 4: Undefined Parameter Error
+### Example 4: Projections and casting
+
+#### Symp Plus definition
+
+```
+(ID Projected
+  (PARAMS x y z))
+
+(ID GetProjected
+  (FUNCTION
+    (PARAMS p)
+    (RESULT
+      (PROJ (CAST p Projected) y)
+```
+
+#### Usage
+
+```
+(GetProjected (Projected "a" "b" "c"))
+```
+
+#### Compilation result (conceptual)
+
+```
+(ID Projected
+  (PARAMS ...))
+
+(ID GetProjected
+  (FUNCTION
+    (PARAMS ...)
+    (RESULT
+      (FAH (RAH (FAH Args))))))
+```
+
+#### Final reduction result
+
+```
+"b"
+```
+
+**key point**
+We can access projections, but only after required casting is applied. Choice of the right casting is our responsibility.
+
+### Example 5: Undefined Parameter Error
 
 #### Symp Plus definition
 
@@ -282,39 +424,15 @@ During compilation, `y` cannot be resolved to a parameter.
 #### Compilation result
 
 ```
-(ERROR "Undefined parameter")
+(ERROR "Unknown parameter: 'y'")
 ```
 
 **Difference from Core:**
 This error is detected *before runtime* and does not involve reduction.
 
-### Example 5: Symp Plus vs Symp Core Equivalence
-
-The following two definitions are semantically equivalent.
-
-#### Symp Plus
-
-```
-(ID Second
-  (FUNCTION
-    (PARAMS x y)
-    (RESULT y)))
-```
-
-#### Symp Core (manual)
-
-```
-(ID Second
-  (FUNCTION
-    (PARAMS ...)
-    (RESULT (FAH (RAH Args)))))
-```
-
-Both reduce identically when applied.
-
 ### Summary
 
-Symp Plus introduces **named parameters as a compile-time abstraction**, not a semantic extension. All parameterized functions are transformed into equivalent Symp Core definitions using explicit structural access over `Args`.
+Symp Plus introduces **named parameters and projections after casting as a compile-time abstraction**, not a semantic extension. All parameterized functions are transformed into equivalent Symp Core definitions using explicit structural access over `Args`.
 
 As a result:
 
@@ -326,9 +444,9 @@ Symp Plus should be understood as a *notation layer* that improves clarity and e
 
 ## 4. Conclusion
 
-Symp Plus demonstrates that meaningful improvements in expressiveness do not require expanding a language’s runtime semantics. By introducing named parameters as a **compile-time abstraction**, Symp Plus improves readability and maintainability while remaining fully compatible with the Symp Core execution model.
+Symp Plus demonstrates that meaningful improvements in expressiveness do not require expanding a language’s runtime semantics. By introducing named parameters and projections as a **compile-time abstraction**, Symp Plus improves readability and maintainability while remaining fully compatible with the Symp Core execution model.
 
-Because all parameterized definitions are translated into explicit structural operations over `Args`, Symp Plus:
+Because all parameterized and projected definitions are translated into explicit structural operations over `Args`, Symp Plus:
 
 * preserves the determinism and transparency of Symp Core,
 * avoids introducing variables, environments, or bindings,

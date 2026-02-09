@@ -6,15 +6,15 @@
 
 CoreModuleTree: {
     item: PlusModule,
-    children: Map<String, CoreModuleTree>
+    children: CoreModuleTree[]
 }
 
-CoreModule: Map<String, CoreDecl>
+CoreModule: CoreDecl[]
 
 CoreDecl: {
     kind: "PARAMS"
 } | {
-    kind: "FUNCTION"
+    kind: "FUNCTION",
     result: CoreTerm
 }
 
@@ -25,87 +25,167 @@ CoreTerm: CoreAtom | CoreList
 CoreAtom: Identifier | Literal
 
 CoreList: {
-    head: Identifier,
+    kind: "LIST",
+    head: CoreTerm,
     tail: CoreTerm[]
-}
-
-Identifier: {
-    module: String[],
-    idName: String,
 }
 
 // plus program
 
 PlusModuleTree: {
     item: PlusModule,
-    children: Map<String, PlusModuleTree>
+    children: PlusModuleTree[]
 }
 
-PlusModule: Map<String, PlusDecl>
+PlusModule: PlusDecl[]
 
 PlusDecl: {
-    kind: "PARAMS"
-} | {
-    kind: "FUNCTION"
+    kind: "PARAMS",
     params: String[]
+} | {
+    kind: "FUNCTION",
+    params: String[],
     result: PlusTerm
 }
 
 // plus expression
 
-PlusTerm: PlusAtom | PlusList
+PlusTerm: PlusAtom | PlusList | PlusProj
 
 PlusAtom: Identifier | Literal | Parameter
 
 PlusList: {
-    head: Identifier,
+    kind: "LIST"
+    head: PlusTerm,
     tail: PlusTerm[]
 }
 
-Identifier: {
-    module: String[],
-    idName: String,
+PlusProj: {
+    kind: "PROJ"
+    base: StarCast,
+    projection: String
 }
 
-Literal: String
+StarCast: {
+    kind: "CAST",
+    param: PlusProj | Parameter,
+    shape: StarIntersect
+}
 
-Parameter: String
+StarIntersect: { 
+    kind: "INTERSECT",
+    elems: Identifier[],
+} | Identifier
+
+Identifier: {
+    kind: "IDENTIFIER",
+    module: String[],
+    label: String,
+}
+
+Literal: {
+    kind: "LITERAL",
+    value: String
+}
+
+Parameter: {
+    kind: "PARAMETER",
+    value: String
+}
 
 // compiler: parameter resolution pass
 
 function compilePlusToCore(moduleTree: PlusModuleTree): CoreModuleTree
     module = {item: [], children: []}
     for item in moduleTree.item
-        if item.value.kind == "FUNCTION"
-            module.item[item.key] = {kind: "FUNCTION", result: substitute(item.value.result, item.value.params)}
-    
-        if item.value.kind == "PARAMS"
+        if moduleTree.item[item.key].kind == "FUNCTION"
+            module.item[item.key] = {
+                kind: "FUNCTION",
+                result: substitute(
+                    moduleTree.item[item.key].result,
+                    moduleTree.item[item.key].params,
+                    moduleTree
+                )
+            }
+        
+        if moduleTree.item[item.key].kind == "PARAMS"
             module.item[item.key] = {kind: "PARAMS"}
     
     for child in moduleTree.children
-        module.children[child.key] = compilePlusToCore(child.value)
+        module.children[child.key] = compilePlusToCore(moduleTree.children[child.key])
     
     return module
 
-function substitute(expr: PlusTerm, params: String[]): CoreTerm
-    if expr is Parameter
-        return getStruct({module: [], idName: "Args"}, expr, params)
+function substitute(expr: PlusTerm, params: String[], moduleTree: PlusModuleTree): CoreTerm
+    if expr.kind == "PROJ"
+        if expr.base.shape.kind == "IDENTIFIER"
+            [ok, module] = getEnv(moduleTree, expr.base.shape)
+            if not ok
+                throw Error(`Casting identifier does not exist: ${expr.base.shape.label}`)
         
-    if expr is literal
-        return expr
-    
-    if expr is Identifier
-        return expr
-    
-    return {head: substitute(expr.head, params), tail: expr.tail.map(e => substitute(e, params)}
+            intersectParams = module[expr.base.shape.label].params
+            
+        else if expr.base.shape.kind == "INTERSECT"
+            intersectParams = []
+            intersection = expr.base.shape.elems
+            tmpIsctParams = []
+            for i = 0..intersection.length
+                [ok, module] = getEnv(moduleTree, intersection[i])
+                if not ok
+                    throw Error(`Casting identifier does not exist: ${intersection[i].label}`)
 
-function getStruct(seed: Identifier, param: String, params: String[]): CoreTerm
+                tmpIsctParams.push(module[intersection[i].label].params)
+            
+            loop1: for i = 0..tmpIsctParams[0].length
+                tmpParam = tmpIsctParams[0][i]
+                for j = 1..tmpIsctParams.length
+                    if tmpParam != tmpIsctParams[j][i]
+                        break loop1
+                
+                intersectParams.push(tmpParam)
+            
+        return getStruct(
+            "projection",
+            substitute(expr.base.param, params, moduleTree),
+            expr.projection,
+            intersectParams
+        )
+    
+    if expr.kind == "PARAMETER"
+        return getStruct("parameter", {module: [], label: "Args"}, expr, params)
+        
+    if expr.kind == "LITERAL"
+        return  expr
+    
+    if expr.kind == "IDENTIFIER"
+        return expr
+    
+    if expr.kind == "LIST"
+        return {
+            kind: "LIST",
+            head: substitute(expr.head, params, moduleTree),
+            tail: expr.tail.map(e => substitute(e, params, moduleTree)
+        }
+
+    throw Error(`Internal error: Symp Plus term not well formed`)
+
+function getStruct(type: String, seed: Identifier, proj: String, params: String[]): CoreTerm
     for i = 0..params.length
-        if param == params[i]
+        if proj == params[i]
             for j = 0..i
-                seed = {head: {module: [], idName: "RAH"}, tail: [seed]}
+                seed = {head: {module: [], label: "RAH"}, tail: [seed]}
             
-            return {head: {module: [], idName: "FAH"}, tail: [seed]}
+            return {head: {module: [], label: "FAH"}, tail: [seed]}
             
-    return {head: {module: [], idName: "ERROR"}, tail: [`Undefined parameter`]}
+    throw Error(`Unknown ${type}: '${proj}'`)
+
+function getEnv(tree: PlusModuleTree, expr: Identifier): [Boolean, PlusModule]
+    module = tree
+    for mod in expr.module
+        if not mod in module.children
+            return [false, null]
+        
+        module = module.children[mod]
+    
+    return [true, module.item]
 

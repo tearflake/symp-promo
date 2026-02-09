@@ -3,7 +3,6 @@
 //  Relaxed BNF rules for S-expr based Symp Plus v0.x  //
 //                                                     //
 //  Notes:                                             //
-//  - in this grammar, `...` reads as a terminal       //
 //  - `*` marks zero or more occurrences               //
 //                                                     //
 /////////////////////////////////////////////////////////
@@ -15,6 +14,6 @@
 
 <ident> := (ID <ATOMIC> <term>)
 
-<term> := (PARAMS ...)
+<term> := (PARAMS <ATOMIC>*)
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
 
