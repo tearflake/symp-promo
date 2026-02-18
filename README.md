@@ -58,7 +58,7 @@ Together, they form an integrated system capable of performing any kind of compu
 
 ---
 
-## Star → Plus → Core
+## Star ➜ Plus ➜ Core
 
 the heart of the system
 
