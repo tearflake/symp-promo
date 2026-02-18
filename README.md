@@ -64,9 +64,9 @@ the heart of the system
 
 ---
 
-#### What can core be used for?
+#### What can core, plus, and star be used for?
 
-The core is designed for problems where structure matters more than presentation.
+The core, plus, and star triad is designed for problems where structure matters more than presentation.
 
 It is especially suited for:
 
@@ -76,7 +76,7 @@ It is especially suited for:
 * Meta-programming and symbolic transformation
 * Learning computation from first principles
 
-The core is not optimized for speed, graphics, or mass-market applications.
+The core, plus, and star triad is not optimized for speed, graphics, or mass-market applications.
 It is optimized for clarity, exactness, and inspectability.
 
 ---
