@@ -76,7 +76,7 @@ It is especially suited for:
 * Meta-programming and symbolic transformation
 * Learning computation from first principles
 
-The core, plus, and star triad is not optimized for speed, graphics, or mass-market applications.
+The triad is not optimized for speed, graphics, or mass-market applications.
 It is optimized for clarity, exactness, and inspectability.
 
 ---
