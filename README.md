@@ -58,13 +58,13 @@ Together, they form an integrated system capable of performing any kind of compu
 
 ---
 
-## Star ➜ Plus ➜ Core
+## Star ➜ Plus ➜ Core Pipeline
 
 the heart of the system
 
 ---
 
-#### What can core, plus, and star be used for?
+#### What can Core, Plus, and Star be Used For?
 
 The core, plus, and star triad is designed for problems where structure matters more than presentation.
 
