@@ -76,6 +76,22 @@ In computer science, the syntax of a computer language is the set of rules that 
          | <primary>
 
 <primary> := <ATOMIC>
+
+///////////////////////////////////////////////////////////
+// within <ANY> S-expression, write:                     //
+// - casting: <cast>                                     //
+// - projection: <proj>                                  //
+///////////////////////////////////////////////////////////
+
+<proj> := (PROJ <cast> <ATOMIC>)
+
+<cast> := (CAST <param> <intersect>)
+
+<param> := <ATOMIC>
+         | <proj>
+
+<intersect> := (INTERSECT <ATOMIC>+)
+             | <ATOMIC>
 ```
 
 In addition to the above syntax grammar, we add the following embeddable syntax for accessing projections:
