@@ -19,7 +19,6 @@ layout: docs
 - [2. Theoretical Background](#2-theoretical-background)
     - [2.1. Formal Syntax](#21-formal-syntax)
     - [2.2. Informal Semantics](#22-informal-semantics)  
-    - [2.3. Discussion](#23-discussion)  
 - [3. Examples](#3-examples)  
 - [4. Conclusion](#4-conclusion)  
 
@@ -82,7 +81,7 @@ In computer science, the syntax of a computer language is the set of rules that 
 In addition to the above syntax grammar, we add the following embeddable syntax for accessing projections:
  
 ```
-<projection> := (GET <BASE> <ATOMIC>+)
+<projection> := (PROJ <BASE> <ATOMIC>+)
 ```
 
 The above grammar defines the syntax of Symp Star. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols (including `...`) are considered parts of the Symp Star grammar.
@@ -125,7 +124,7 @@ Every Star term is interpreted as producing an **interface value**.
 * **Literals** evaluate to a literal interface.
 * **Parameters** evaluate to a parameter interface.
 * **Identifiers** evaluate to an identifier interface referring to a named declaration.
-* **GET expressions** project a labeled field from a product interface.
+* **PROJ expressions** project a labeled field from a product interface.
 * **Applications** evaluate by applying a function or product interface to argument interfaces.
 
 Term checking is recursive and compositional: the interface of a term is determined entirely by the interfaces of its subterms.
@@ -191,7 +190,6 @@ A projection extracts a labeled field from a product interface.
 The final pass erases all Star-specific constructs:
 
 * Interfaces are removed.
-* GET expressions are projected into equivalent Plus expressions.
 * Only parameters, identifiers, and pure expressions remain.
 
 The resulting program is a valid **Symp Plus** module tree with identical runtime behavior to the original Star program.
@@ -207,176 +205,6 @@ Conceptually, Symp Star adds a **logical interface layer** on top of Symp Plus:
 * All interface information is erased before execution.
 
 A Star program is valid if and only if its interfaces can be consistently satisfied across all terms.
-
-### 2.3. Discussion
-
-The informal semantics of Symp Star describe how syntactically valid expressions are *understood* by the validator. Unlike traditional semantics, these rules do not assign meanings or values to expressions. Instead, they describe how interface obligations are propagated, combined, and checked.
-
-Symp Star interprets programs as symbolic structures annotated with interface claims. Validation proceeds by ensuring that every projection access, function application, and composition step is structurally justified by the declared interfaces. When an obligation cannot be satisfied, validation fails with an explicit structural error.
-
-The following parts describe these semantics in detail, beginning with basic orientation and progressing through composition, control, parametricity, and philosophical limits.
-
-#### Part I — Orientation
-
-**What Symp Star Is (and Is Not)**
-
-Symp Star is a structural interface validation system whose role is to check whether symbolic programs respect the interface obligations they declare. It operates purely at the level of structure: it does not inspect values, reason about meaning, or attempt to interpret behavior. Its purpose is to determine whether symbolic programs, plans, or workflows are structurally admissible. By design, Symp Star is a static, value-agnostic, execution-independent validator whose analysis is decidable. It is intentionally not a traditional type system, a theorem prover, or a semantic analyzer. Rather than attempting to understand what a program does, Symp Star only verifies whether the program is structurally permitted to do it.
-
-**Why Structural Validation Matters**
-
-Many failures in real systems arise not from incorrect values, but from incorrect assumptions about structure. These failures include accessing projections that may not exist, composing steps whose interfaces do not align, or calling functions whose outputs are incompatible with subsequent inputs. Symp Star addresses these problems by making structural assumptions explicit and mechanically checkable. By validating structure statically, it detects such errors before execution ever occurs.
-
-**The Cost of Implicit Assumptions**
-
-When assumptions about structure remain implicit, they silently propagate through programs and workflows. Over time, this leads to runtime errors, fragile systems, and excessive defensive programming. Symp Star forces these assumptions to be stated explicitly as interface obligations. In doing so, it replaces hidden expectations with clear, enforceable structural contracts.
-
-**Why We Avoid Semantics on Purpose**
-
-Semantic reasoning is inherently value-dependent, context-sensitive, and often undecidable. Because of this, systems that rely on semantic analysis tend to be unpredictable and difficult to compose reliably. Symp Star deliberately avoids semantic reasoning in order to remain predictable, decidable, and compositional. This avoidance is not a limitation, but a design choice that preserves mechanical reliability.
-
-#### Part II — Core Concepts
-
-**Symbols, Identifiers, and Projections**
-
-In Symp Star, symbols name entities, while projections represent named structural capabilities that may be accessed from those entities using built-in `GET` interface. A projection denotes permission to access a particular capability, not the value that capability yields. Symp Star never inspects values themselves; it only checks whether a projection is structurally permitted.
-
-**Interfaces as Structural Obligations**
-
-An interface in Symp Star is defined as a set of projections that an entity must support. When an expression claims an interface, it is obligated to support every projection contained within that interface. Interfaces therefore describe what must be possible structurally, rather than what will happen at runtime or what values will be produced.
-
-**Capabilities and Capability Sets**
-
-Capabilities are atomic projections that represent individual structural permissions. Capability sets describe the total collection of projections that may be safely accessed from an entity. These sets may be atomic, compositional, or expressed as unions of alternatives, and they may be reduced through structural operations. Together, they form the basis of Symp Star’s structural reasoning.
-
-**Functions as Structural Transformers**
-
-Functions in Symp Star are treated as transformations over interfaces rather than over values. Each function declares the interfaces it requires from its parameters and the interface it guarantees for its result. Through this declaration, functions describe how structure flows and transforms across program boundaries, independent of execution.
-
-#### Part III — Composition
-
-**Composing Steps Safely**
-
-Structural composition in Symp Star is permitted only when the output interface of one step satisfies the input requirements of the next. If a mismatch occurs, composition is rejected outright. This ensures that structurally invalid workflows are prevented before execution.
-
-**Product: Combining Independent Capabilities**
-
-The `PRODUCT` construct represents the simultaneous availability of multiple interfaces. All components of a product must be satisfied for the product itself to be valid. This allows independent capabilities to be combined into a single structural obligation.
-
-**Union: Representing Alternatives**
-
-The `UNION` construct represents structural uncertainty by allowing an entity to satisfy one of several alternative interfaces. When an interface is expressed as a union, only one of its alternatives is guaranteed to be present at any given time. This explicitly models uncertainty in structure.
-
-**Why Alternatives Are Dangerous Without Commitment**
-
-Because a union represents multiple possible structures, projections cannot be safely accessed without first committing to a specific alternative. Attempting to access a projection directly from a union is therefore rejected. In its default mode, Symp Star requires explicit narrowing before such access is allowed.
-
-#### Part IV — Control and Responsibility
-
-**Structural Branching**
-
-Branching in Symp Star originates from applying functions like the `Eq` predicate at list heads, directing execution into a result branch. Each branch introduces a different possible interface, resulting in a union of potential outcomes. Symp Star tracks this divergence structurally rather than semantically.
-
-**Explicit Narrowing with Cast**
-
-The `Cast` construct explicitly commits a union to a specific interface. By performing a cast, the programmer declares responsibility for choosing a particular structural alternative. This commitment allows projections to be accessed safely thereafter.
-
-**Why Cast Is Not an Interface Escape Hatch**
-
-Casting does not invent new capabilities or weaken existing guarantees. Instead, it asserts intent and shifts responsibility to the programmer. The structural obligations remain intact; only the responsibility for correctness changes hands.
-
-**Optimism vs Pessimism in Structural Analysis**
-
-Optimistic analysis assumes admissibility unless proven impossible, while pessimistic analysis requires guarantees at every step. Exact analysis occupies a balance between these extremes by requiring explicit interface casting to resolve uncertainty. Symp Star defaults to exact analysis in order to enforce clarity and responsibility without unnecessary restriction.
-
-#### Part V — Parametric Structure
-
-**Parametric Interfaces**
-
-Parametric interfaces abstract over interface variables rather than concrete structures. This allows interface definitions to be reused across many contexts without committing to specific capabilities. Parametricity enables generality while preserving structural rigor.
-
-**Structural Reuse Without Types**
-
-Through parametricity, Symp Star enables reuse without relying on a traditional type system. Structural constraints can be expressed generically, without introducing semantic commitments about values or types. This keeps abstraction purely structural.
-
-**Generic Workflows**
-
-Workflows in Symp Star may be expressed generically over interfaces rather than concrete capability sets. This allows plans and transformations to be reused across different structural contexts. Such workflows remain independent of the specific capabilities involved.
-
-**Interface-Level Abstraction**
-
-All abstraction in Symp Star occurs at the interface level rather than at the value level. This ensures that abstraction remains structural, mechanical, and decidable. Values and semantics remain outside the system’s scope.
-
-#### Part VI — Validation in Practice
-
-**Symp Star as a Pre-Execution Guard**
-
-Symp Star operates as a guard that validates plans before execution begins. By checking structural admissibility early, it prevents a wide class of errors from occurring at runtime. This shifts failure detection to the earliest possible stage.
-
-**Validating Symbolic Plans**
-
-Symbolic plans generated by humans or machines are treated as symbolic expressions. Symp Star checks these expressions mechanically to ensure that their structural obligations are satisfied. No execution or interpretation is required.
-
-**Diagnosing Structural Errors**
-
-When validation fails, Symp Star reports errors in terms of violated interface obligations. These errors identify missing or unsafe projections directly. This makes structural problems explicit and diagnosable.
-
-**What “Correct” Means in Symp Star**
-
-In Symp Star, correctness has a narrow and precise meaning. A program is correct if it is structurally admissible, and incorrect otherwise. No claims are made beyond this structural criterion.
-
-#### Part VII — Positioning
-
-**Symp Star vs Type Systems**
-
-Traditional type systems reason about values and their behaviors. Symp Star, by contrast, reasons only about structure and permitted projections. It validates structure without committing to any particular typing discipline.
-
-**Symp Star vs Theorem Provers**
-
-Theorem provers aim to establish truths through logical reasoning. Symp Star does not attempt to prove anything; it merely checks whether declared structural obligations are satisfied. Its role is validation, not proof.
-
-**Symp Star vs Symbolic Programming**
-
-Symp Star is not a symbolic programming system itself, but a complement to such systems. It validates symbolic programs without executing them. In this way, it serves as structural infrastructure rather than a programming paradigm.
-
-**Symp Star as Infrastructure, Not Authority**
-
-Symp Star enforces discipline but does not impose meaning. It provides structural guarantees without asserting intent, correctness of results, or semantic interpretation. Authority remains with the program author.
-
-#### Part VIII — Philosophy
-
-**Why We Stay Decidable**
-
-Decidability ensures that validation always terminates and produces predictable results. This predictability enables trust, speed, and composability. Remaining decidable is therefore a foundational design goal.
-
-**Why We Avoid Negation and Existentials**
-
-Negation and existential reasoning introduce undecidability and semantic dependence. Including them would undermine Symp Star’s mechanical guarantees. For this reason, they are deliberately excluded.
-
-**What Symp Star Refuses to Know**
-
-Symp Star explicitly refuses to reason about values, truth, semantics, or intent. These concerns lie outside its mandate. By refusing to know them, Symp Star preserves clarity and mechanical reliability.
-
-**What Responsibility Means in Formal Systems**
-
-In Symp Star, responsibility means explicit commitment. Ambiguity is not resolved implicitly by the system but must be resolved by the author. Symp Star enforces this discipline by requiring responsibility to be stated structurally and explicitly.
-
-#### Part IX — Known Limitations
-
-**Explicit assertions can still be wrong**
-
-Symp Star allows authors to make explicit claims about what a step produces or requires. If such a claim is incorrect, Symp Star has no way to detect it and will proceed as if it were true. This is intentional: Symp Star refuses *implicit* assumptions, not explicit ones. When a declaration is made, responsibility for its accuracy remains with the author.
-
-**Runtime behavior is out of scope**
-
-Symp Star does not execute workflows or observe runtime values. It does not reason about IO, timing, concurrency, network behavior, or side effects. Any failure that depends on runtime conditions may still occur, even if the workflow is structurally admissible. Symp Star only evaluates whether the declared structure of the workflow holds.
-
-**Admissibility is not correctness**
-
-A workflow that passes Symp Star may still be incorrect, inefficient, unsafe, unethical, or simply useless. Symp Star does not evaluate whether an outcome is desirable or whether a plan achieves its goal. It only checks whether each step follows from the previous ones according to what has been explicitly declared.
-
-**No inference or repair is performed**
-
-When Symp Star encounters a structural mismatch, it does not attempt to infer missing assumptions, guess intent, or suggest fixes. It reports the point at which admissibility breaks and stops. This refusal is deliberate: repair and reinterpretation are left to humans or external systems.
 
 ## 3. Examples
 
@@ -399,7 +227,7 @@ This example introduces a function that requires a capability. Its purpose is to
         (EXPECTS
             (FUNCTION
                 (PARAMS x)
-                (RESULT (GET x name)))
+                (RESULT (PROJ x name)))
             
             (ENTAILS
                 (PRODUCT HasName)
@@ -449,7 +277,7 @@ This example demonstrates how independent capabilities can be combined. It intro
         (EXPECTS
             (FUNCTION
                 (PARAMS x)
-                (RESULT (GET x email)))
+                (RESULT (PROJ x email)))
             
             (ENTAILS
                 (PRODUCT User)
@@ -488,9 +316,9 @@ This example explores how a function can safely accept multiple structural shape
             (FUNCTION
                 (PARAMS x)
                 (RESULT
-                    ((Eq (GET x prefers tag) "email")
-                        (GET (Cast (GET x prefers) (Email "abc" "abc")) email )
-                        (GET (Cast (GET x prefers) (SMS   "abc" "abc")) number)))))
+                    ((Eq (PROJ x prefers tag) "email")
+                        (PROJ (CAST (PROJ x prefers) Email) email )
+                        (PROJ (CAST (PROJ x prefers) SMS) number)))))
             
             (ENTAILS
                 (PRODUCT User)
@@ -516,23 +344,6 @@ This final example introduces interfaces that abstract over structure itself. It
 ```
 
 This form of polymorphism is purely structural: it operates over interfaces, not types, and does not depend on the nature of the values involved. Calling the function by: `(Identity "x")` yields `"x"`.
-
-The following parametric function defines very important casting function:
-
-```
-(ID Cast
-    (EXPECTS
-        (FUNCTION
-            (PARAMS x i)
-            (RESULT x))
-        
-        (PARAMETRIC X I
-            (ENTAILS
-                (PRODUCT X I)
-                I))))
-```
-
-Here, `Cast` is shown not as a built-in primitive but as an ordinary function. It takes a value and a witness expression of an interface, using that witness to justify the cast. Casting allows us to repurpose a value declaring it complies to the new interface. Projections of the new interface `I` have to be a subset of the old interface `X`, otherwise an interface error is reported. 
 
 ## 4. Conclusion
 
