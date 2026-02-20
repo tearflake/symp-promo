@@ -78,12 +78,15 @@ In computer science, the syntax of a computer language is the set of rules that 
 <primary> := <ATOMIC>
 
 ///////////////////////////////////////////////////////////
-// within <ANY> S-expression, write:                     //
-// - casting: <cast>                                     //
-// - projection: <proj>                                  //
+//  within <ANY> S-expression, write:                    //
+//  - projection: <proj>                                 //
+//  - casting: <cast>                                    //
 ///////////////////////////////////////////////////////////
 
-<proj> := (PROJ <cast> <ATOMIC>)
+<proj> := (PROJ <base> <ATOMIC>)
+
+<base> := <ATOMIC>
+        | <cast>
 
 <cast> := (CAST <param> <intersect>)
 
