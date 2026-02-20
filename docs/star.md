@@ -335,7 +335,7 @@ This example explores how a function can safely accept multiple structural shape
             (FUNCTION
                 (PARAMS x)
                 (RESULT
-                    ((Eq (PROJ x prefers tag) "email")
+                    ((Eq (PROJ (PROJ x prefers) tag) "email")
                         (PROJ (CAST (PROJ x prefers) Email) email )
                         (PROJ (CAST (PROJ x prefers) SMS) number)))))
             
