@@ -348,7 +348,7 @@ This example makes it clear that Symp refuses silent narrowing. The programmer m
 
 ```
 (Notify (User "Jill" (Email "email" "jill@mymail.com"))) -> "jill@mymail.com"
-(Notify (User "Jack" (SMS   "sms"   "+1555123456"    ))) -> "+155512345"
+(Notify (User "Jack" (SMS   "sms"   "+155512345"     ))) -> "+155512345"
 ```
 
 ### Example 5 — Parametric Interfaces
