@@ -72,7 +72,7 @@ In computer science, the syntax of a computer language is the set of rules that 
 
 <ident> := (ID <ATOMIC> <term>)
 
-<term> := (PARAMS <ATOMIC>*)
+<term> := (CONSTANT (PARAMS <ATOMIC>*))
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
 
 ///////////////////////////////////////////////////////////
