@@ -15,18 +15,18 @@
 
 <ident> := (ID <ATOMIC> <term>)
 
-<term> := (PARAMS <ATOMIC>*)
+<term> := (CONSTANT (PARAMS <ATOMIC>*))
         | (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
 
 ///////////////////////////////////////////////////////////
 // within <ANY> S-expression, write projection <proj> as //
 ///////////////////////////////////////////////////////////
 
-<proj> := (PROJ (CAST <param> <intersect>) <ATOMIC>)
+<proj> := (PROJ (CAST <param> <union>) <ATOMIC>)
 
 <param> := <ATOMIC>
          | <proj>
 
-<intersect> := (INTERSECT <ATOMIC>+)
-             | <ATOMIC>
+<union> := (UNION <ATOMIC>+)
+         | <ATOMIC>
 

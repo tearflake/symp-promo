@@ -2,45 +2,41 @@
 // Symp Plus v0.x (Pseudocode) //
 /////////////////////////////////
 
-// core program
+// inc program
 
-CoreModuleTree: {
-    item: PlusModule,
-    children: CoreModuleTree[]
+IncModuleTree: {
+    item: IncDecl[],
+    children: IncModuleTree[]
 }
 
-CoreModule: CoreDecl[]
-
-CoreDecl: {
-    kind: "PARAMS"
+IncDecl: {
+    kind: "CONSTANT"
 } | {
     kind: "FUNCTION",
-    result: CoreTerm
+    result: IncTerm
 }
 
-// core expression
+// inc expression
 
-CoreTerm: CoreAtom | CoreList
+IncTerm: IncAtom | IncList
 
-CoreAtom: Identifier | Literal
+IncAtom: Literal
 
-CoreList: {
+IncList: {
     kind: "LIST",
-    head: CoreTerm,
-    tail: CoreTerm[]
+    head: Identifier,
+    tail: IncTerm[]
 }
 
 // plus program
 
 PlusModuleTree: {
-    item: PlusModule,
+    item: PlusDecl[],
     children: PlusModuleTree[]
 }
 
-PlusModule: PlusDecl[]
-
 PlusDecl: {
-    kind: "PARAMS",
+    kind: "CONSTANT",
     params: String[]
 } | {
     kind: "FUNCTION",
@@ -52,28 +48,28 @@ PlusDecl: {
 
 PlusTerm: PlusAtom | PlusList | PlusProj
 
-PlusAtom: Identifier | Literal | Parameter
+PlusAtom: Literal | Parameter
 
 PlusList: {
-    kind: "LIST"
-    head: PlusTerm,
+    kind: "LIST",
+    head: Identifier,
     tail: PlusTerm[]
 }
 
 PlusProj: {
-    kind: "PROJ"
-    base: StarCast,
-    projection: String
+    kind: "PROJ",
+    base: PlusCast,
+    proj: String
 }
 
-StarCast: {
+PlusCast: {
     kind: "CAST",
     param: PlusProj | Parameter,
-    shape: StarIntersect
+    shape: PlusUnion
 }
 
-StarIntersect: { 
-    kind: "INTERSECT",
+PlusUnion: { 
+    kind: "UNION",
     elems: Identifier[],
 } | Identifier
 
@@ -95,97 +91,97 @@ Parameter: {
 
 // compiler: parameter resolution pass
 
-function compilePlusToCore(moduleTree: PlusModuleTree): CoreModuleTree
+function compilePlusToInc(moduleTree: PlusModuleTree): IncModuleTree
     module = {item: [], children: []}
-    for item in moduleTree.item
-        if moduleTree.item[item.key].kind == "FUNCTION"
-            module.item[item.key] = {
+    for key in moduleTree.item
+        if moduleTree.item[key].kind == "FUNCTION"
+            module.item[key] = {
                 kind: "FUNCTION",
                 result: substitute(
-                    moduleTree.item[item.key].result,
-                    moduleTree.item[item.key].params,
+                    moduleTree.item[key].result,
+                    moduleTree.item[key].params,
                     moduleTree
                 )
             }
         
-        if moduleTree.item[item.key].kind == "PARAMS"
-            module.item[item.key] = {kind: "PARAMS"}
+        if moduleTree.item[key].kind == "CONSTANT"
+            module.item[key] = {kind: "CONSTANT"}
     
-    for child in moduleTree.children
-        module.children[child.key] = compilePlusToCore(moduleTree.children[child.key])
+    for key in moduleTree.children
+        module.children[key] = compilePlusToInc(moduleTree.children[key])
     
     return module
 
-function substitute(expr: PlusTerm, params: String[], moduleTree: PlusModuleTree): CoreTerm
+function substitute(expr: PlusTerm, params: String[], moduleTree: PlusModuleTree): IncTerm
     if expr.kind == "PROJ"
-        if expr.base.shape.kind == "IDENTIFIER"
-            [ok, module] = getEnv(moduleTree, expr.base.shape)
-            if not ok
-                throw Error(`Casting identifier does not exist: ${expr.base.shape.label}`)
-        
-            intersectParams = module[expr.base.shape.label].params
-            
-        else if expr.base.shape.kind == "INTERSECT"
-            intersectParams = []
-            intersection = expr.base.shape.elems
-            tmpIsctParams = []
-            for i = 0..intersection.length
-                [ok, module] = getEnv(moduleTree, intersection[i])
-                if not ok
-                    throw Error(`Casting identifier does not exist: ${intersection[i].label}`)
-
-                tmpIsctParams.push(module[intersection[i].label].params)
-            
-            loop1: for i = 0..tmpIsctParams[0].length
-                tmpParam = tmpIsctParams[0][i]
-                for j = 1..tmpIsctParams.length
-                    if tmpParam != tmpIsctParams[j][i]
-                        break loop1
-                
-                intersectParams.push(tmpParam)
-            
-        return getStruct(
-            "projection",
-            substitute(expr.base.param, params, moduleTree),
-            expr.projection,
-            intersectParams
-        )
+        return getProjection(expr, params, moduleTree)
     
     if expr.kind == "PARAMETER"
-        return getStruct("parameter", {module: [], label: "Args"}, expr, params)
-        
+        return getStruct("parameter", {kind: "IDENTIFIER", module: [], label: "Args"}, expr, params)
+    
     if expr.kind == "LITERAL"
         return  expr
-    
-    if expr.kind == "IDENTIFIER"
-        return expr
     
     if expr.kind == "LIST"
         return {
             kind: "LIST",
-            head: substitute(expr.head, params, moduleTree),
-            tail: expr.tail.map(e => substitute(e, params, moduleTree)
+            head: expr.head,
+            tail: expr.tail.map(e => substitute(e, params, moduleTree))
         }
 
     throw Error(`Internal error: Symp Plus term not well formed`)
 
-function getStruct(type: String, seed: Identifier, proj: String, params: String[]): CoreTerm
-    for i = 0..params.length
-        if proj == params[i]
-            for j = 0..i
-                seed = {head: {module: [], label: "RAH"}, tail: [seed]}
+function getProjection(expr: PlusProj, params: String[], moduleTree: PlusModuleTree): IncTerm
+    unionParams = []
+    if expr.base.shape.kind == "IDENTIFIER"
+        [ok, module] = getModule(moduleTree, expr.base.shape)
+        if (not ok) or (module[expr.base.shape.label] not exists)
+            throw Error(`Unknown alias or identifier: '${expr.base.shape.label}'`)
+        
+        unionParams = module[expr.base.shape.label].params
+        
+    else if expr.base.shape.kind == "UNION"
+        un = expr.base.shape.elems
+        tmpUnParams = []
+        for i = 0..(un.length - 1)
+            [ok, module] = getModule(moduleTree, un[i])
+            if not ok or module[un[i].label] not exists
+                throw Error(`Unknown alias or identifier: '${un[i].label}'`)
+        
+            tmpUnParams.push(module[un[i].label].params)
+        
+        loop1: for i = 0..(tmpUnParams[0].length - 1)
+            tmpParam = tmpUnParams[0][i]
+            for j = 1..(tmpUnParams.length - 1)
+                if tmpUnParams[j].length <= i or tmpUnParams[j][i] != tmpParam
+                    break loop1
             
-            return {head: {module: [], label: "FAH"}, tail: [seed]}
-            
-    throw Error(`Unknown ${type}: '${proj}'`)
+            unionParams.push(tmpParam)
+        
+    return getStruct(
+        "projection",
+        substitute(expr.base.param, params, moduleTree),
+        expr.proj,
+        unionParams
+    )
 
-function getEnv(tree: PlusModuleTree, expr: Identifier): [Boolean, PlusModule]
+function getModule(tree: PlusModuleTree, expr: Identifier): [Boolean, PlusModule]
     module = tree
-    for mod in expr.module
-        if not mod in module.children
+    for key in expr.module
+        if module.children[key] not exists
             return [false, null]
         
-        module = module.children[mod]
+        module = module.children[key]
     
     return [true, module.item]
+
+function getStruct(type: String, seed: IncTerm, proj: String, params: String[]): IncTerm
+    for i = 0..(params.length - 1)
+        if proj == params[i]
+            for j = 0..(i - 1)
+                seed = {kind: "LIST", head: {kind: "IDENTIFIER", module: [], label: "RAH"}, tail: [seed]}
+            
+            return {kind: "LIST", head: {kind: "IDENTIFIER", module: [], label: "FAH"}, tail: [seed]}
+            
+    throw Error(`Unknown ${type}: '${proj}'`)
 

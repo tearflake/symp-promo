@@ -79,13 +79,13 @@ In computer science, the syntax of a computer language is the set of rules that 
 // within <ANY> S-expression, write projection <proj> as //
 ///////////////////////////////////////////////////////////
 
-<proj> := (PROJ (CAST <param> <intersect>) <ATOMIC>)
+<proj> := (PROJ (CAST <param> <union>) <ATOMIC>)
 
 <param> := <ATOMIC>
          | <proj>
 
-<intersect> := (INTERSECT <ATOMIC>+)
-             | <ATOMIC>
+<union> := (UNION <ATOMIC>+)
+         | <ATOMIC>
 ```
 
 The above grammar defines the syntax of Symp Plus. To interpret these grammar rules, we use special symbols: `<...>` for noting identifiers, `... := ...` for expressing assignment, `...+` for one or more occurrences, `...*` for zero or more occurrences, `...?` for optional appearance, and `... | ...` for alternation between expressions. All other symbols are considered parts of the Symp Plus grammar.
@@ -390,14 +390,15 @@ Parameter order determines structure. Reordering parameters changes the generate
 **Observation:**
 Each occurrence of `x` expands independently. There is no sharing or binding.
 
-### Example 4: Projections and casting
+### Example 4: Projections and Casting
 
 #### Symp Plus definition
 
 ```
 (SYMP
   (ID Projected
-    (PARAMS x y z))
+    (CONSTANT
+      (PARAMS x y z)))
 
   (ID GetProjected
     (FUNCTION
@@ -417,7 +418,8 @@ Each occurrence of `x` expands independently. There is no sharing or binding.
 ```
 (SYMP
   (ID Projected
-    (PARAMS ...))
+    (CONSTANT
+      (PARAMS ...)))
 
   (ID GetProjected
     (FUNCTION
@@ -432,8 +434,8 @@ Each occurrence of `x` expands independently. There is no sharing or binding.
 "b"
 ```
 
-**key point**
-We can access projections, but only after required casting is applied. Choice of the right casting is our responsibility.
+**Key point:**
+We can access projections, but only after required casting is applied. Choice of the right casting is our own responsibility.
 
 ### Example 5: Undefined Parameter Error
 
