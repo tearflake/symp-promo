@@ -1,12 +1,12 @@
-/////////////////////////////////////////////////////////
-//                                                     //
-//  Relaxed BNF rules for S-expr based Symp Core v0.x  //
-//                                                     //
-//  Notes:                                             //
-//  - in this grammar, `...` reads as a terminal       //
-//  - `*` marks zero or more occurrences               //
-//                                                     //
-/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+//                                                    //
+//  Relaxed BNF rules for S-expr based Symp Inc v0.x  //
+//                                                    //
+//  Notes:                                            //
+//  - in this grammar, `...` reads as a terminal      //
+//  - `*` marks zero or more occurrences              //
+//                                                    //
+////////////////////////////////////////////////////////
 
 <start> := (SYMP <alias>* <ident>*)
          | (FILE <ATOMIC>)
@@ -15,6 +15,6 @@
 
 <ident> := (ID <ATOMIC> <term>)
 
-<term> := (PARAMS ...)
+<term> := (CONSTANT (PARAMS ...))
         | (FUNCTION (PARAMS ...) (RESULT <ANY>))
 

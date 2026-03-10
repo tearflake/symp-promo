@@ -1,39 +1,37 @@
-/////////////////////////////////
-// Symp Core v0.x (Pseudocode) //
-/////////////////////////////////
+////////////////////////////////
+// Symp Inc v0.x (Pseudocode) //
+////////////////////////////////
 
 // program
 
-CoreModuleTree: {
-    item: PlusModule,
-    children: CoreModuleTree[]
+IncModuleTree: {
+    item: IncDeclaration[],
+    children: IncModuleTree[]
 }
 
-CoreModule: CoreDecl[]
-
-CoreDecl: {
-    kind: "PARAMS"
+IncDeclaration: {
+    kind: "CONSTANT"
 } | {
     kind: "FUNCTION",
-    result: CoreTerm
+    result: IncTerm
 }
 
 // expression
 
-CoreTerm: CoreAtom | CoreList
+IncTerm: IncList | IncAtom
 
-CoreAtom: Identifier | Literal
+IncAtom: Literal
 
-CoreList: {
+IncList: {
     kind: "LIST",
-    head: CoreTerm,
-    tail: CoreTerm[]
+    head: Identifier,
+    tail: IncTerm[]
 }
 
 Identifier: {
     kind: "IDENTIFIER",
     module: String[],
-    label: String,
+    label: String
 }
 
 Literal: {
@@ -43,122 +41,180 @@ Literal: {
 
 // interpreter
 
-function reduce(expr: CoreTerm, moduleTree: CoreModuleTree): CoreTerm
+function eval(expr: IncTerm, moduleTree: IncModuleTree): IncTerm
+    [ok, term] = reduce(expr, moduleTree)
+    return term
+    
+function reduce(expr: IncTerm, moduleTree: IncModuleTree): [Boolean, IncTerm]
     while true
-        if expr.kind == "LITERAL"
+        switch expr.kind
+            case "LITERAL"
+                return [true, expr]
+        
+            case "LIST"
+                head = expr.head
+                tail = []
+                if head.label == "If"
+                    [ok, result] = typeCheck(expr, expr.tail, ["ANY", "ANY", "ANY"])
+                    if ok
+                        [ok0, t0] = reduce(expr.tail[0], moduleTree)
+                        if ok0
+                            if t0.kind == "LITERAL" and t0.value == "true"
+                                [ok1, t1] = reduce(expr.tail[1], moduleTree)
+                                if ok1
+                                    expr = t1
+                                    continue
+                                
+                                return [false, t1]
+
+                            else
+                                [ok2, t2] = reduce(expr.tail[2], moduleTree)
+                                if ok2
+                                    expr = t2
+                                    continue
+
+                                return [false, t2]
+                                
+                        return [false, {kind: "LIST", head: expr.head, tail: [t0, expr.tail[1], expr.tail[2]]}]
+                    
+                    return [false, result]
+                
+                else
+                    allok = true
+                    for el of expr.tail
+                        [ok, e] = reduce(el, moduleTree)
+                        allok = allok and ok
+                        tail.push(e)
+                    
+                    if not allok
+                        return [false, {kind: "LIST", head: head, tail: tail}]
+                
+                switch head.label
+                    case "IsEq" // test for atom equality
+                        [ok, result] = typeCheck(expr, tail, ["ANY", "ANY"])
+                        if ok
+                            if tail[0].kind ==  "LIST" or tail[1].kind == "LIST"
+                                expr = {kind: "LITERAL", value: "false"}
+                            
+                            else
+                                expr = {kind: "LITERAL", value: (tail[0].value == tail[1].value ? "true" : "false")}
+                            
+                            continue
+                        
+                        return [false, result]
+
+                    case "IsAtom" // test if argument is atom
+                        [ok, result] = typeCheck(expr, tail, ["ANY"])
+                        if ok
+                            expr = {kind: "LITERAL", value: (tail[0].kind != "LIST" ? "true" : "false")}
+                            continue
+
+                        return [false, result]
+
+                    case "IsEmpty" // test if list is empty
+                        [ok, result] = typeCheck(expr, tail, ["LIST"])
+                        if ok
+                            expr = {kind: "LITERAL", value: (tail[0].tail.length == 0 ? "true" : "false")}
+                            continue
+
+                        return [false, result]
+                    
+                    case "FAH" // first element after head
+                        [ok, result] = typeCheck(expr, tail, ["NELIST"])
+                        if ok
+                            expr = tail[0].tail[0]
+                            continue
+                        
+                        return [false, result]
+
+                    case "RAH" // rest of elements after head
+                        [ok, result] = typeCheck(expr, tail, ["NELIST"])
+                        if ok
+                            expr = {kind: "LIST", head: tail[0].head, tail: tail[0].tail[1..]}
+                            continue
+                        
+                        return [false, result]
+
+                    case "IAH" // insert element after head
+                        [ok, result] = typeCheck(expr, tail, ["ANY", "LIST"])
+                        if ok
+                            expr = {kind: "LIST", head: tail[1].head, tail: [tail[0], ...tail[1].tail]}
+                            continue
+                        
+                        return [false, result]
+
+                    case "TypeOf" // type of element
+                        [ok, result] = typeCheck(expr, tail, ["ANY"])
+                        if ok
+                            if tail[0].kind == "LITERAL"
+                                expr = {kind: "LITERAL", value: "LITERAL"}
+                            
+                            else
+                                path = tail[0].head.module.join("/")
+                                expr = {
+                                    kind: "LITERAL",
+                                    value: (path == "" ? tail[0].head.label : path + "/" + tail[0].head.label)
+                                }
+
+                            continue
+
+                        return [false, result]
+                    
+                    case else
+                        [ok, module] = getModule(moduleTree, head)
+                        if ok and (head.label in module)
+                            if module[head.label].kind == "FUNCTION"
+                                expr = substitute(
+                                    module[head.label].result,
+                                    {kind: "LIST", head: head, tail: tail},
+                                    moduleTree
+                                )
+                                
+                                continue
+                            
+                            return [true, {kind: "LIST", head: head, tail: tail}]
+                        
+                        return [false, error(`Unknown alias or identifier`)]
+
+function substitute(expr: IncTerm, args: IncList, moduleTree: IncModuleTree): IncTerm
+    if expr.kind == "LITERAL"
+        if expr.value == "ARGS"
+            return {kind: "LIST", head: {kind: "IDENTIFIER", module: [], label: "Args"}, tail: args.tail}
+        
+        else
             return expr
-        
-        if expr.kind == "IDENTIFIER"
-            [ok, module] = getModule(moduleTree, expr)
-            if (not ok) or (not expr.label in module)
-                return {head: {module: [], label: "ERROR"}, tail: [`Unknown alias or identifier ${expr.label}`]}
-            
-            return expr // Identifiers are inert unless in head position;
-        
-        head = reduce(expr.head, moduleTree)
-        if head.kind == "IDENTIFIER"
-            if head.label == "Args" or head.label == "ERROR" // arg list and error are valid heads
-                return expr
-            
-            if head.label == "IsEq" // test for atom equality
-                if expr.tail.length != 2
-                    return {head: {module: [], label: "ERROR"}, tail: [`'Eq' requires two parameters`]}
-                                    
-                cond = (reduce(expr.tail[0], moduleTree) == reduce(expr.tail[1], moduleTree))
-                expr = {module: [], label: (cond ? "True" : "False"}
-                continue
-            
-            if head.label == "IsAtom" // test if argument is atom
-                if expr.tail.length != 1
-                    return {head: {module: [], label: "ERROR"}, tail: [`'IsAtom' requires one parameter`]}
-                
-                redExpr = reduce(expr.tail[0])
-                cond = (redExpr.kind != "LIST")
-                expr = {module: [], label: (cond ? "True" : "False"}
-                continue
-            
-            if head.label == "IsEmpty" // test if list is empty
-                if expr.tail.length != 1
-                    return {head: {module: [], label: "ERROR"}, tail: [`'IsEmpty' requires one parameter`]}
-                
-                redExpr = reduce(expr.tail[0], moduleTree)
-                if redExpr.kind != "LIST"
-                    return {head: {module: [], label: "ERROR"}, tail: [`'IsEmpty' requires list as parameter`]}
 
-                cond = (redExpr.tail.length == 0)
-                expr = {module: [], label: (cond ? "True" : "False"}
-                continue
-            
-            if head.label == "FAH" // first element after head
-                if expr.tail.length != 1
-                    return {head: {module: [], label: "ERROR"}, tail: [`'FAH' requires one parameter`]}
-                
-                redExpr = reduce(expr.tail[0], moduleTree)
-                if redExpr.kind != "LIST"
-                    return {head: {module: [], label: "ERROR"}, tail: [`'FAH' requires list as parameter`]}
+    return {kind: "LIST", head: expr.head, tail: expr.tail.map(e => substitute(e, args, moduleTree))}
 
-                if (redExpr.tail.length == 0)
-                    return {head: {module: [], label: "ERROR"}, tail: [`'FAH' on empty list`]}
-                
-                expr = redExpr.tail[0]
-                continue
-            
-            if head.label == "RAH" // rest of elements after head
-                if expr.tail.length != 1
-                    return {head: {module: [], label: "ERROR"}, tail: [`'RAH' requires one parameter`]}
-                
-                redExpr = reduce(expr.tail[0], moduleTree)
-                if redExpr.kind != "LIST"
-                    return {head: {module: [], label: "ERROR"}, tail: [`'RAH' requires list as parameter`]}
-                
-                if (redExpr.tail.length == 0)
-                    return {head: {module: [], label: "ERROR"}, tail: [`'RAH' on empty list`]}
-                
-                expr = {head: redExpr.head, tail: redExpr.tail[1..]}
-                continue
-            
-            if head.label == "IAH" // insert element after head
-                if expr.tail.length != 2
-                    return {head: {module: [], label: "ERROR"}, tail: [`'IAH' requires two parameters`]}
-                
-                redExpr = reduce(expr.tail[1], moduleTree)
-                if redExpr.kind != "LIST"
-                    return {head: {module: [], label: "ERROR"}, tail: [`'IAH' requires list as second parameter`]}
-
-                expr = {head: redExpr.head, tail: [reduce(expr.tail[0], moduleTree), ...redExpr.tail]}
-                continue
-                
-            [ok, module] = getModule(moduleTree, head)
-            if ok and (head.label in module)
-                if module[head.label].kind == "FUNCTION"
-                    expr = substitute(module[head.label].result, {head: head, tail: expr.tail}, moduleTree)
-                    continue
-                
-                return {head: head, tail: expr.tail.map((e) => reduce(e, moduleTree))}
-        
-            return {head: {module: [], label: "ERROR"}, tail: [`Unknown alias or identifier`]}
-            
-        return {head: {module: [], label: "ERROR"}, tail: [`Head must reduce to identifier`]}
-
-function getModule(moduleTree: CoreModuleTree, expr: Identifier): [Boolean, CoreModule]
-    module = moduleTree
-    for mod in expr.module
-        if module.children[mod.key] not exists
+function getModule(moduleTree: IncModuleTree, expr: Identifier): [Boolean, IncDeclaration[]]
+    for key in expr.module
+        if moduleTree.children[key] not exists
             return [false, null]
         
-        module = module.children[mod.key]
+        moduleTree = moduleTree.children[key]
     
-    return [true, module.item]
+    return [true, moduleTree.item]
 
-function substitute(expr: CoreTerm, args: CoreList, moduleTree: CoreModuleTree): CoreTerm
-    if expr.kind == "LITERAL"
-        return expr
+function typeCheck(expr: IncList, tail: IncTerm[], type: String[]): [Boolean, IncTerm]
+    if tail.length !== type.length
+        return [false, error(`'${expr.head.label}' requires ${type.length} arguments`)]
 
-    if expr.kind == "IDENTIFIER"
-        if expr.label == "Args"
-            return {head: {module: [], label: "Args"}, tail: args.tail}
+    for i = 0..(type.length - 1)
+        if (type[i] == "LIST" or type[i] == "NELIST") and tail[i].kind != "LIST"
+            return [false, error(`'${expr.head.label}' requires argument ${i + 1} to be list`)]
+        
+        else if type[i] == "NELIST" and tail[i].tail.length == 0
+            return [false, error(`'${expr.head.label}' on empty list`)]
+
+        else if type[i] == "ATOM" and tail[i].kind == "LIST"
+            return [false, error(`'${expr.head.label}' requires argument ${i + 1} to be atom`)]
     
-        return {module: [...args.head.module, ...expr.module], label: expr.label} // all module paths are relative
-    
-    return {head: substitute(expr.head, args, moduleTree), tail: expr.tail.map(e => substitute(e, args, moduleTree)}
+    return [true, expr]
+
+function error(msg)
+    return {
+        kind: "LIST",
+        head: {kind: "IDENTIFIER", module: [], label: "ERROR"},
+        tail: [{kind: "LITERAL", value: msg}]
+    }
 
