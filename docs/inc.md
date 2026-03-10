@@ -90,13 +90,13 @@ Atomic expressions may be enclosed between a pair of `'` characters if we want t
  
 In addition to the exposed grammar, user comments have no meaning to the system, but may be descriptive to readers, and may be placed wherever a whitespace is expected. Single line comments begin with `//` and span to the end of line. Multiline comments begin with `/*` and end with `*/`.
 
-### 2.2. ### Informal Semantics
+### 2.2. Informal Semantics
 
 The **Symp Inc interpreter** evaluates expressions by repeatedly rewriting them until no further reduction is possible. Evaluation is deterministic and proceeds by recursively reducing subexpressions before attempting to apply a function.
 
 #### Terms
 
-A program manipulates **terms** (`IncTerm`). A term is either:
+A program manipulates **terms**. A term is either:
 
 * **Literal** — an atomic value represented as a string.
 * **List** — a structured expression consisting of:
@@ -112,8 +112,6 @@ Conceptually, a list corresponds to a function call:
 
 #### Evaluation Strategy
 
-Evaluation is performed by the `reduce` function, which repeatedly invokes `reduceHelper`.
-
 The interpreter follows these general rules:
 
 1. **Literals evaluate to themselves.**
@@ -122,7 +120,8 @@ The interpreter follows these general rules:
 4. Once all arguments are reduced, the interpreter attempts to apply the operation indicated by the list head.
 5. If the head refers to a built-in operation, that operation is executed.
 6. Otherwise, the interpreter attempts to resolve the head as a **user-defined function** in the module tree.
-7. If the identifier cannot be resolved, evaluation produces an error term.
+7. **User defined constants** do not further reduce.
+8. If the identifier cannot be resolved, evaluation produces an error term.
 
 This strategy corresponds to a **strict evaluation model**: arguments are reduced before a function is applied.
 
@@ -182,6 +181,14 @@ After substitution, the resulting expression is evaluated again.
 
 This mechanism provides a simple **macro-style function expansion** rather than environment-based variable binding.
 
+#### User-Defined Constants
+
+If the head identifier of a list refers to a declaration in the module tree and the declaration is a **constant**, the list is preserved with evaluating only list parameters.
+
+Constants represent non reducible lists considered primitive structures.
+
+All the reductions eventually have to land to constants, thus ending the computation branches.
+
 #### Error Handling
 
 Errors are represented as ordinary terms:
@@ -201,7 +208,7 @@ When an error occurs, evaluation stops for the current expression and the error 
 
 #### Modules
 
-Identifiers may reference functions within modules using a module path. During evaluation the interpreter resolves identifiers by traversing the **module tree** according to the path specified in the identifier.
+Identifiers may reference functions within modules using a module alias path. During evaluation the interpreter resolves identifiers by traversing the **module tree** according to the path specified in the identifier.
 
 If any module in the path does not exist, resolution fails and an error is produced.
 
@@ -368,7 +375,7 @@ A function is defined by specifying a result term that may refer to `Args`.
   (ID Echo
     (FUNCTION
       (PARAMS ...)
-      (RESULT (FAH Args)))))
+      (RESULT (FAH ARGS)))))
 ```
 
 Calling `Echo`:
@@ -381,7 +388,7 @@ Reduction steps:
 
 1. `Echo` resolves to a function.
 2. Its result term is substituted.
-3. `Args` is replaced by the `(Args ...)` where `...` stands for the argument list.
+3. `ARGS` is replaced by the `(Args ...)` where `...` stands for the argument list.
 
 Final result:
 
@@ -497,7 +504,7 @@ We now define a recursive function `Length`:
     (FUNCTION
       (PARAMS ...)
       (RESULT
-        ((IsEmpty Args)
+        ((IsEmpty ARGS)
           "zero"
           (Succ (Length (RAH ARGS))))))))
 ```
@@ -565,7 +572,7 @@ Errors are ordinary terms and propagate structurally.
 Reduction result:
 
 ```
-(ERROR "'FAH' requires argument 0 to be list")
+(ERROR "'FAH' requires argument 1 to be list")
 ```
 
 Because errors are values, they can be passed around and inspected like any other term.
@@ -578,7 +585,6 @@ The language demonstrates that:
 
 * meaningful computation can be expressed purely through structural rewriting,
 * functions can be modeled as substitution rules rather than executable procedures,
-* control flow can emerge from data structure and head resolution,
 * and errors can be treated as values rather than exceptional control paths.
 
 While Symp Inc is intentionally minimal, it provides a foundation upon which richer abstractions—such as pattern matching, typing disciplines, macro systems, or domain-specific languages—can be built.
