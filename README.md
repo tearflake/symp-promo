@@ -58,15 +58,15 @@ Together, they form an integrated system capable of performing any kind of compu
 
 ---
 
-## Star ➜ Plus ➜ Core Pipeline
+## Core
 
 the heart of the system
 
 ---
 
-#### What can Core, Plus, and Star be Used For?
+#### What can Core be Used For?
 
-The core, plus, and star triad is designed for problems where structure matters more than presentation.
+The core is designed for problems where structure matters more than presentation.
 
 It is especially suited for:
 
@@ -76,7 +76,7 @@ It is especially suited for:
 * Meta-programming and symbolic transformation
 * Learning computation from first principles
 
-The triad is not optimized for speed, graphics, or mass-market applications.
+The core is not optimized for speed, graphics, or mass-market applications.
 It is optimized for clarity, exactness, and inspectability.
 
 ---
