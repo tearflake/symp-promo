@@ -45,3 +45,5 @@
 
 <case> := (CASE <primary> <ANY>)
 
+<projection> := (PROJ <BASE> <ATOMIC>+)
+
