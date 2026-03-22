@@ -1,0 +1,47 @@
+//////////////////////////////////////////////////////////
+//                                                      //
+//  Relaxed BNF rules for S-expr based Symp Times v0.x  //
+//                                                      //
+//  Notes:                                              //
+//  - `*` marks zero or more occurrences                //
+//  - `+` marks one or more occurrences                 //
+//                                                      //
+//////////////////////////////////////////////////////////
+
+<start> := (SYMP <alias>* <ident>*)
+         | (FILE <ATOMIC>)
+
+<alias> := (ALIAS <ATOMIC> <start>)
+
+<ident> := (ID <ATOMIC> <decl>)
+
+<decl> := (EXPECTS <function> <tvar-entails>)
+        | (EXPECTS <constant> <tvar-product>)
+
+<function> := (FUNCTION (PARAMS <ATOMIC>*) (RESULT <ANY>))
+
+<constant> := (CONSTANT (PARAMS <ATOMIC>*))
+
+<tvar-entails> := (FORALL <ATOMIC>+ <entails>)
+               | <entails>
+
+<tvar-product> := (FORALL <ATOMIC>+ <product>)
+               | <product>
+
+<entails> := (ENTAILS <product> <union>)
+
+<product> := (PRODUCT <union>*)
+
+<union> := (UNION <primary>+)
+         | <primary>
+
+<primary> := (TYPE <ATOMIC> <primary>*)
+
+/////////////////////////
+// occurs within <ANY> //
+/////////////////////////
+
+<match> := (MATCH <ATOMIC> <case>+)
+
+<case> := (CASE <primary> <ANY>)
+

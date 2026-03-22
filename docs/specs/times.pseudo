@@ -1,0 +1,484 @@
+//////////////////////////////////
+// Symp Times v0.x (Pseudocode) //
+//////////////////////////////////
+
+// plus program
+
+PlusModuleTree: {
+    item: PlusDecl[],
+    children: PlusModuleTree[]
+}
+
+PlusDecl: {
+    kind: "CONSTANT",
+    args: String[]
+} | {
+    kind: "FUNCTION",
+    args: String[],
+    rslt: PlusTerm
+}
+
+// plus expression
+
+PlusTerm: PlusAtom | PlusList | PlusProj
+
+PlusAtom: Literal | Argument
+
+PlusList: {
+    kind: "LIST",
+    head: Identifier,
+    tail: PlusTerm[]
+}
+
+PlusProj: {
+    kind: "PROJ",
+    base: PlusCast,
+    proj: String
+}
+
+PlusCast: {
+    kind: "CAST",
+    param: PlusList | PlusProj | Argument,
+    shape: PlusUnion
+}
+
+PlusUnion: { 
+    kind: "UNION",
+    elems: Identifier[],
+} | Identifier
+
+// times program
+
+TimesModuleTree: {
+    item: TimesDecl[],
+    children: TimesModuleTree[]
+}
+
+TimesDecl: {
+    kind: "CONSTANT",
+    args: String[],
+    interface: Product,
+    typeParams: String[]
+} | {
+    kind: "FUNCTION",
+    args: String[],
+    rslt: TimesTerm
+    interface: Entails,
+    typeParams: String[]
+}
+
+// times expression
+
+TimesTerm: TimesAtom | TimesList | TimesMatch | TimesProj
+
+TimesAtom: Literal | Argument
+
+TimesList: {
+    kind: "LIST",
+    head: Identifier,
+    tail: TimesTerm[]
+}
+
+TimesMatch: {
+    kind: "MATCH",
+    param: Argument,
+    body: TimesCase[]
+}
+
+TimesCase: {
+    kind: "CASE",
+    param: Identifier | {label: "ELSE"},
+    body: TimesTerm
+}
+
+TimesProj: {
+    kind: "PROJ",
+    base: Argument | TimesProj | TimesList,
+    proj: Argument
+}
+
+// times interface
+
+Entails: {
+    kind: "ENTAILS",
+    input: Product,
+    output: Union
+}
+
+Product: {
+    kind: "PRODUCT",
+    elems: Union[]
+}
+
+Union: {
+    kind: "UNION",
+    elems: Primary[]
+} | Primary
+
+Primary: {
+    kind: "IDENTIFIER",
+    module: String[],
+    label: String
+} |
+{
+    kind: "TYPEVAR",
+    label: String
+}
+
+// common types
+
+Identifier: {
+    kind: "IDENTIFIER",
+    module: String[],
+    label: String
+}
+
+Literal: {
+    kind: "LITERAL",
+    value: String
+}
+
+Argument: {
+    kind: "ARGUMENT",
+    value: String
+}
+
+function compileTimesToPlus(moduleTree: TimesModuleTree): PlusModuleTree
+    newItem = []
+    for key in moduleTree.item
+        if moduleTree.item[key].kind == "CONSTANT"
+            newItem[key] = {
+                kind: "CONSTANT",
+                args: moduleTree.item[key].args
+            }
+                
+        if moduleTree.item[key].kind ==  "FUNCTION"
+            freshSubst = []
+            for T in moduleTree.item[key].typeParams
+                freshSubst[T] = freshTypeVar()
+
+            inferred = inferInterface(moduleTree.item[key].rslt, [], moduleTree)
+            checkSatisfiesFunc(moduleTree.item[key].interface.input, inferred, moduleTree.item[key].interface, freshSubst)
+            
+            shapes = []
+            prod = moduleTree.item[key].interface
+            prod = prod.input
+            for i = 0..(moduleTree.item[key].args.length - 1)
+                shapes[moduleTree.item[key].args[i]] = prod[i]
+
+            newItem[key] = {
+                kind: "FUNCTION",
+                args: moduleTree.item[key].args,
+                rslt: processResult(moduleTree.item[key].rslt, shapes, moduleTree)
+            }
+
+    newChildren = []
+    for key in moduleTree.children
+        newChildren[key] = compileTimesToPlus(moduleTree.children[key])
+
+    return {item: newItem, children: newChildren}
+
+function processResult(term: TimesTerm, shapes: Union[], moduleTree: TimesModuleTree): PlusTerm
+    switch term.kind
+        case "LITERAL", "ARGUMENT"
+            return term
+
+        case "LIST"
+            tail = []
+            for el of term.tail
+                tail.push(processResult(el, shapes, moduleTree))
+            
+            return {kind: "LIST", head: term.head, tail: tail}
+
+        case "MATCH"
+            return adaptMatch(term, 0, shapes, moduleTree)
+
+        case "PROJ"
+            [proj, shape] = adaptProj(term, shapes, moduleTree)
+            return proj
+
+function adaptMatch(term: TimesMatch, idx: Integer, shapes: Union[], moduleTree: TimesModuleTree): PlusTerm
+    if idx < term.body.length and term.body[idx].param.label != "ELSE"
+        thenShapes = [...shapes]
+        thenShapes[term.param.value] = normalizeUnion(term.body[idx].param)
+        elseShapes = shapes
+        return {
+            kind: "LIST",
+            head: {kind: "IDENTIFIER", module: [], label: "If"},
+            tail: [
+                {
+                    kind: "LIST",
+                    head: {kind: "IDENTIFIER", module: [], label: "IsEq"},
+                    tail: [
+                        {
+                            kind: "LIST",
+                            head: {kind: "IDENTIFIER", module: [], label: "TypeOf"},
+                            tail: [term.param]
+                        },
+                        term.body[idx].param
+                    ]
+                },
+                processResult(term.body[idx].body, thenShapes, moduleTree),
+                adaptMatch(term, idx + 1, elseShapes, moduleTree)
+            ]
+        }
+        
+    else if idx == term.body.length - 1 and term.body[idx].param.label == "ELSE"
+        return processResult(term.body[idx].body, shapes, moduleTree)
+        
+    else if idx == term.body.length - 1
+        return {
+            kind: "LIST",
+            head: {kind: "IDENTIFIER", module: [], label: "ERROR"},
+            tail: [{kind: "LITERAL", value: `Nonexisting match of argument '${term.param.value}'`}]
+        }
+    
+    throw Error(`Match 'ELSE' not last in sequence`)
+
+function adaptProj(term: TimesProj, shapes: Union[], moduleTree: TimesModuleTree): [PlusTerm, Union]
+    if term.base.kind == "ARGUMENT"
+        param = term.base
+        shape = shapes[term.base.value]
+    
+    else if term.base.kind == "PROJ"
+        [param, shape] = adaptProj(term.base, shapes, moduleTree)
+
+    else if term.base.kind == "LIST"
+        param = term.base
+        shape = getListShape(term.base, moduleTree)
+
+    else
+        throw Error("Unsupported projection base")
+        
+    return [
+        {
+            kind: "PROJ",
+            base: {
+                kind: "CAST",
+                param: param,
+                shape: shape
+            },
+            proj: term.proj
+        },
+        getProjShape(shape, term.proj, moduleTree)
+    ]
+
+getProjShape(shape: Union, proj: String, moduleTree: TimesModuleTree): Union
+    switch shape.kind
+        case "TYPEVAR"
+            throw Error(`Cannot project unknown type`)
+        
+        case "IDENTIFIER"
+            id = shape
+            [ok, module] = getModule(moduleTree, id)
+            if not ok or module[id.label] not exists
+                throw Error(`Unknown alias or identifier: '${id.label}'`)
+            
+            idx = module[id.label].args.indexOf(proj)
+            if idx > -1
+                return module[id.label].interface[idx]
+
+            throw Error(`Projection '${proj}' not possible`)
+            
+        case "UNION"
+            rslt = {kind: "UNION", elems: []}            
+            foundAt = -1
+            for el = 0..(shape.elems.length - 1)
+                id = shape.elems[el]
+                [ok, module] = getModule(moduleTree, id)
+                if not ok or module[id.label] not exists
+                    throw Error(`Unknown alias or identifier: '${id.label}'`)
+                
+                idx = module[id.label].args.indexOf(proj)
+                if idx > -1
+                    if foundAt == -1 or foundAt == idx
+                        foundAt = idx
+                        rslt = mergeUnions([rslt, module[id.label].interface[idx]])
+                    
+                    else
+                        throw Error(`Projection '${proj}' not possible`)
+                
+                else
+                    throw Error(`Projection '${proj}' not possible`)
+                
+            return rslt
+    
+    throw Error(`Internal error`)
+
+function getListShape(list: TimesList, moduleTree: TimesModuleTree): Union | Product
+    head = list.head
+    [ok, module] = getModule(moduleTree, head)
+    if not ok or module[head.label] not exists
+        throw Error(`Unknown function: '${head.label}'`)
+    
+    decl = module[head.label]
+
+    if decl.kind == "CONSTANT"
+        return decl.interface
+    
+    else if decl.kind == "FUNCTION"
+        return decl.interface.output
+
+function inferInterface(term: TimesTerm, env: Union[], moduleTree: TimesModuleTree): Union | Product
+    switch term.kind
+        case "LITERAL"
+            return {kind: "UNION", elems: [{kind: "IDENTIFIER", module: [], label: "LITERAL"}]}
+
+        case "ARGUMENT"
+            if term.value in env
+                return env[term.value]
+            
+            throw Error(`Unbound argument '${term.value}'`)
+
+        case "LIST"
+            head = term.head
+            [ok, module] = getModule(moduleTree, head)
+            if not ok or module[head.label] not exists
+                throw Error(`Unknown function: '${head.label}'`)
+
+            decl = module[head.label]
+            
+            freshSubst = []
+            for T in decl.typeParams
+                freshSubst[T] = freshTypeVar()
+
+            argTypes = []
+            for el in term.tail
+                argTypes.push(inferInterface(el, env, moduleTree))
+            
+            if decl.kind == "CONSTANT"
+                checkSatisfiesArgs(argTypes, substituteType(decl.interface, freshSubst), freshSubst)
+                return substituteType(decl.interface, freshSubst)
+            
+            else if decl.kind == "FUNCTION"
+                checkSatisfiesArgs(argTypes, substituteType(decl.interface.input, freshSubst), freshSubst)
+                return substituteType(decl.interface.output, freshSubst)
+        
+        case "PROJ"
+            baseType = inferInterface(term.base, env, moduleTree)
+            return getProjShape(baseType, term.proj, moduleTree)
+
+        case "MATCH"
+            paramName = term.param.value
+            paramType = env[paramName]
+
+            if paramType.kind != "UNION"
+                throw Error(`Match requires union type`)
+            
+            checkExhaustive(term.body, paramType.elems)
+                
+            resultTypes = []
+            for c in term.body
+                caseType = c.param
+
+                newEnv = copy(env)
+                newEnv[paramName] = caseType
+
+                bodyType = inferInterface(c.body, newEnv, moduleTree)
+                resultTypes.push(bodyType)
+
+            return mergeUnions(resultTypes)
+
+function checkExhaustive(tc: TimesCase[], tt: Identifier[]): Boolean
+    for c in tc
+        if c.param.label != "ELSE" and c.param not in tt
+            throw Error(`Nonexisting match case '${c.param.label}'`)
+    
+    miss = false
+    for t in tt
+        cnt = 0
+        for c in tc
+            if c.param.label == t.label && c.param.module == t.module
+                cnt++
+        
+        if cnt == 0
+            miss = t.label
+        
+        else if cnt > 1
+            throw Error(`Redundant match case '${t.label}'`)
+    
+    if miss and last(tc).param.label !== "ELSE"
+        throw Error(`Missing match case '${miss}'`)
+    
+    return true
+
+function mergeUnions(unions: Union[]): Union
+    elems = []
+    for u in unions
+        if u.kind == "IDENTIFIER"
+            if u not in elems
+                elems.push(u)
+        
+        else if u.kind == "UNION"
+            for el in u.elems
+                if el not in elems
+                    elems.push(el)
+    
+    return {kind: "UNION", elems: elems}
+
+function checkSatisfiesArgs(argTypes: Identifier[], declared: Product, typeParams: Identifier[])
+    if argTypes.length != declared.elems.length
+        throw Error(`Argument count mismatch`)
+
+    typeParams = copy(typeParams)
+    for i = 0..(argTypes.length - 1)
+        if not isUnionSubtype(argTypes[i], declared.elems[i], typeParams)
+            throw Error(`Input type mismatch at position ${i + 1}`)
+
+    return true
+
+function checkSatisfiesFunc(inferredInput: Product, inferredOutput: Union, declared: Entails, typeParams: Identifier[]): Boolean
+    if inferredInput.elems.length != declared.input.elems.length
+        throw Error(`Argument count mismatch`)
+
+    typeParams = copy(typeParams)
+    for i = 0..(inferredInput.elems.length - 1)
+        if not isUnionSubtype(inferredInput.elems[i], declared.input.elems[i], typeParams)
+            throw Error(`Input type mismatch at position ${i + 1}`)
+
+    if not isUnionSubtype(inferredOutput, declared.output, typeParams)
+        throw Error(`Output type mismatch`)
+
+    return true
+
+function isUnionSubtype(a: Union, b: Union, subst: Identifier[]): Boolean
+    if b.kind == "TYPEVAR"
+        if b.label not in subst
+            subst[b.label] = a
+            return true
+        else
+            return set(normalizeUnion(subst[b.label])) == set(normalizeUnion(a))
+    
+    else
+        for el in normalizeUnion(a)
+            if el not in normalizeUnion(b)
+                return false
+    
+    return true
+
+function normalizeUnion(u: Union): Identifier[]
+    if u.kind == "IDENTIFIER"
+        return [u]
+    
+    return u.elems
+
+function substituteType(t: Union, subst: Identifier[]): Union
+    switch t.kind
+        case "TYPEVAR"
+            return subst[t.label]
+
+        case "IDENTIFIER"
+            return t
+
+        case "UNION"
+            return {kind: "UNION", elems: t.elems.map(e => substituteType(e, subst))}
+
+function getModule(moduleTree: TimesModuleTree, expr: Identifier): [Boolean, TimesDecl[]]
+    for key in expr.module
+        if moduleTree.children[key] not exists
+            return [false, null]
+        
+        moduleTree = moduleTree.children[key]
+    
+    return [true, moduleTree.item]
+
