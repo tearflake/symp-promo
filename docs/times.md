@@ -11,7 +11,6 @@ layout: docs
 > Advanced programmers
 > 
 > **[abstract]**  
-**[abstract]**  
 > Symp Times is a statically-checked symbolic programming language designed to express computations over structured data using a uniform S-expression syntax. It introduces a structural interface system based on products and unions, enabling safe composition, projection, and pattern matching without relying on nominal typing. Programs are compiled through intermediate representations into a minimal symbolic core, ensuring both expressive power and a simple execution model. This document defines the syntax, semantics, and design principles of Symp Times, and illustrates its use through a series of progressively complex examples.
 
 ## Table of Contents
