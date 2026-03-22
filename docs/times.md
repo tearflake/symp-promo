@@ -510,8 +510,6 @@ Taken together, these examples demonstrate the core philosophy of Symp Times: pr
 
 ## 4. Conclusion
 
-## 4. Conclusion
-
 Symp Times presents a structured approach to symbolic computation, combining a simple syntactic foundation with a powerful system of structural interfaces. By separating concerns between high-level expression, intermediate representation, and low-level execution, the framework achieves both clarity and flexibility.
 
 The language enforces correctness through compile-time validation, ensuring that all structural requirements are satisfied before execution. Features such as projection, unions, and pattern matching are designed to be both expressive and safe, while remaining compatible with a minimal execution model.
